@@ -36,10 +36,13 @@
 				<p><label><input type="checkbox" checked="">#000000 is matte</label></p>
 			</form>
 		</fieldset>
-		<script id="preamble" type="text/plain">local scale = Vector3.new(1, 1, 1)
-local origin = Vector3.new(0, 0, 0) - 0.5 * scale * Vector3.new(bounds.X, 0, bounds.Y)
-local model = Instance.new("Model")
+		<script id="preamble" type="text/plain">
+local scale = Vector3.new(1, 1, 1)
+local adjust = 0.5 * scale * Vector3.new(bounds.X, -2 * bounds.Y, bounds.Z)
+local origin = Vector3.new(0, 0, 0) - adjust
+local flip = Vector3.new(1, -1, 1)
 
+local model = Instance.new("Model")
 local cache = {}
 
 local function build(c32, r8,g8,b8,a8, x,y,z, w,h,d)
@@ -49,8 +52,8 @@ local function build(c32, r8,g8,b8,a8, x,y,z, w,h,d)
 		cache[c32] = c
 	end
 	local tr = (255 - a8) / 255
-	local size = Vector3.new(w, d, h) * scale
-	local pos = Vector3.new(x, z, y) * scale + 0.5 * size + origin
+	local size = Vector3.new(w, h, d) * scale
+	local pos = origin + flip * (Vector3.new(x, y, z) * scale + 0.5 * size)
 	
 	local part = Instance.new("Part", model)
 	part.Color = c

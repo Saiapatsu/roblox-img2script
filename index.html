@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<meta charset="utf-8">
+		<title>Image to Roblox</title>
+		<style media="screen">
+			body {
+				max-width: 800px;
+				margin: auto;
+				padding: 8px;
+			}
+			#input {
+				height: 50px;
+				border: 1px solid lightgrey;
+			}
+			#input:focus {
+				border: 1px dotted black;
+			}
+		</style>
+ <link rel="icon" id="favicon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAAOlJREFUOMutUrENgzAQ/I9oaJkCiYoBqFKzQGZgBgrPkBlYIDVVBqCy9FO4dekU0ZHX84ImVEZ/d74/H9E/vhT6kkJfrjCXQu9HW7QgSJqcQl+AO3WTUioAQ8Aj3lyVaaVxHommlbq23oWHRdhCGcpdW1OUvBNoWome98O5mTc+OBgWYQyi5O9EkeHGy4HPwrRuIK5XYY/sruHYd0Pc1Y31KNntS2WLojN4hZ8DCNunvIEcJVMzbzwswjZI3K5zOS2THto2olj4r646v7uxGWEFXVUQdNqwHCW7ttm+e5RMwyKswbgVWWncB3EzxFgtIwHpAAAAAElFTkSuQmCC" type="image/png">
+	</head>
+	<body>
+		<h1>Image to Roblox</h1>
+		<fieldset>
+			<legend>Output</legend>
+			<textarea style="height:40vh;width:100%" id="output"></textarea>
+			<p id="info"></p>
+		</fieldset>
+		<fieldset>
+			<legend>Input</legend>
+			<p>Paste an image below, or use the Browse button. Some browsers var you drag and drop onto the Browse button.</p>
+			<div id="input" contenteditable=""></div>
+			<form id="options">
+				<p><input type="file" multiple="multiple"></p>
+				<p><label><input type="checkbox" checked="">Greedy meshing</label></p>
+				<p><label><input type="checkbox" checked="">#000000 is matte</label></p>
+			</form>
+		</fieldset>
+		<script id="preamble" type="text/plain">local scale = Vector3.new(1, 1, 1)
+local origin = Vector3.new(0, 0, 0) - 0.5 * scale * Vector3.new(bounds.X, 0, bounds.Y)
+local model = Instance.new("Model")
+
+local cache = {}
+
+local function build(c32, r8,g8,b8,a8, x,y,z, w,h,d)
+	local c = cache[c32]
+	if not c then
+		c = Color3.fromRGB(r8,g8,b8)
+		cache[c32] = c
+	end
+	local tr = (255 - a8) / 255
+	local size = Vector3.new(w, d, h) * scale
+	local pos = Vector3.new(x, z, y) * scale + 0.5 * size + origin
+	
+	local part = Instance.new("Part", model)
+	part.Color = c
+	part.Transparency = tr
+	part.Size = size
+	part.Position = pos
+	part.Anchored = true
+	part.Parent = model
+end
+
+model.Parent = workspace
+
+</script>
+		<script type="text/javascript">
+			var output = document.getElementById("output");
+			var screech = document.getElementById("info");
+			
+			var eoptions = document.getElementById("options");
+			var options = {};
+			eoptions[1].addEventListener("change", handleInput);
+			eoptions[2].addEventListener("change", handleInput);
+			
+			var input = document.getElementById("input");
+			var browse = eoptions[0];
+			var sample = document.createElement("img");
+			sample.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAAOlJREFUOMutUrENgzAQ/I9oaJkCiYoBqFKzQGZgBgrPkBlYIDVVBqCy9FO4dekU0ZHX84ImVEZ/d74/H9E/vhT6kkJfrjCXQu9HW7QgSJqcQl+AO3WTUioAQ8Aj3lyVaaVxHommlbq23oWHRdhCGcpdW1OUvBNoWome98O5mTc+OBgWYQyi5O9EkeHGy4HPwrRuIK5XYY/sruHYd0Pc1Y31KNntS2WLojN4hZ8DCNunvIEcJVMzbzwswjZI3K5zOS2THto2olj4r646v7uxGWEFXVUQdNqwHCW7ttm+e5RMwyKswbgVWWncB3EzxFgtIwHpAAAAAElFTkSuQmCC";
+			
+			function handleInput() {
+				options.mesh = eoptions[1].checked;
+				options.mask = eoptions[2].checked;
+				
+				var images = Array.filter(input.children, x => x.nodeName === "IMG");
+				if (images.length) {
+					screech.innerHTML = drawProjectile(images);
+				} else {
+					// Draw the demo
+					drawProjectile([sample]);
+					screech.innerHTML = "No sprite loaded";
+				}
+			}
+			input.addEventListener("drop", () => {
+				setTimeout(() => {
+					handleInput();
+				}, 100);
+			});
+			input.addEventListener("blur", handleInput);
+
+			browse.addEventListener("change", () => {
+				var files = browse.files;
+				for (var i = 0; i < files.length; i++) {
+					var file = files[i];
+					if (file.type.match("image.*")) {
+						var fr = new FileReader;
+						fr.onload = function() {
+							var image = document.createElement("img");
+							image.src = this.result;
+							image.onload = function() {
+								input.appendChild(image);
+								handleInput();
+							}
+						};
+						fr.readAsDataURL(file);
+					}
+				}
+			});
+			
+			var ehcanvas = document.createElement("canvas");
+			var hcanvas = ehcanvas.getContext("2d");
+			
+			var preamble = document.getElementById("preamble").innerText;
+			
+			function drawProjectile(sources) {
+				
+				// Size of image, padded with transparent black to the bottom and right
+				var mw = Math.max.apply(null, sources.map(x => x.naturalWidth)) + 1;
+				var mh = Math.max.apply(null, sources.map(x => x.naturalHeight)) + 1;
+				var md = sources.length;
+				
+				// Extract bitmap data from img element. Draw each image to
+				// a film strip of sorts, later interpreted in 3D. Leave one padding layer.
+				ehcanvas.width = mw;
+				ehcanvas.height = mh * (md + 1);
+				sources.forEach((source, i) => hcanvas.drawImage(source, 0, i * mh));
+				
+				var map8 = hcanvas.getImageData(0, 0, ehcanvas.width, ehcanvas.height).data;
+				// UInt32Array view of the image for one element per pixel
+				var map = new Uint32Array(map8.buffer);
+				
+				// Output string (it's actually safe to just += string in
+				// javascript, but I want anyone porting this to Lua to
+				// beware never to do that)
+				var rope = [`local bounds = Vector3.new(${mw-1}, ${mh-1}, ${md})\n`, preamble];
+				
+				// Solid black to fully transparent, any other fully transparent
+				// to transparent black/sentinel value
+				if (options.mask) {
+					for (var i = 0; i < map8.length; i+=4) {
+						if (map8[i] == 0 && map8[i+1] == 0 && map8[i+2] == 0 && map8[i+3] == 255) {
+							map[i>>2] = 0;
+						} else if (map8[i+3] == 0) {
+							map[i>>2] = 0;
+						}
+					}
+				} else {
+					for (var i = 0; i < map8.length; i+=4) {
+						// For those confused: check alpha channel in u8a,
+						// clear entire pixel in u32a
+						if (map8[i+3] == 0) {
+							map[i>>2] = 0;
+						}
+					}
+				}
+				
+				var MAX = 2048;
+				
+				// Scan right for a line of v, return width
+				function right(v, pos) {
+					var i = pos + 1;
+					for (var x = 1; x <= MAX; x++) {
+						if (map[i] != v) return x;
+						i += 1;
+					}
+					return MAX;
+				}
+				
+				// Scan down for an area of v, return height
+				function down(v, pos, w) {
+					var i = pos + mw;
+					for (var y = 1; y <= MAX; y++) {
+						for (var x = 0; x < w; x++) {
+							if (map[i] != v) return y;
+							i += 1;
+						}
+						i += mw - w;
+					}
+					return MAX;
+				}
+				
+				// Scan fore for a volume of v, return depth
+				function fore(v, pos, w, h) {
+					var i = pos + mw * mh;
+					for (var d = 1; d <= MAX; d++) {
+						for (var y = 0; y < h; y++) {
+							for (var x = 0; x < w; x++) {
+								console.log("fore", pos);
+								if (map[i] != v) return d;
+								i += 1;
+							}
+							i += mw - w;
+						}
+						i += mw * mh - mw * h;
+					}
+					return MAX;
+				}
+				
+				// Fill w,h,d volume at pos with v
+				function fill(v, pos, w, h, d) {
+					for (var z = 0; z < d; z++) {
+						for (var y = 0; y < h; y++) {
+							for (var x = 0; x < w; x++) {
+								map[pos + x + mw * (y + mh * z)] = v;
+							}
+						}
+					}
+				}
+				
+				function build(v, x, y, z, w, h, d) {
+					var pos8 = (x + mw * (y + mh * z)) << 2;
+					// rope.push(`build(${v}, ${x},${y},${z}, ${w},${h},${d})\n`);
+					rope.push(`build(${v}, ${map8[pos8+0]},${map8[pos8+1]},${map8[pos8+2]},${map8[pos8+3]}, ${x},${y},${z}, ${w},${h},${d})\n`);
+				}
+				
+				// Returns a hint as to where toward x to probe next
+				function probe(pos, x, y, z) {
+					var v = map[pos];
+					if (v == 0) return 1;
+					var w = right(v, pos);
+					var h = down(v, pos, w);
+					var d = fore(v, pos, w, h);
+					build(v, x, y, z, w, h, d);
+					fill(0, pos, w, h, d);
+					return w == MAX ? MAX : w;
+				}
+				
+				if (options.mesh) {
+					for (var z = 0; z < md; z++) {
+						for (var y = 0; y < mh-1; y++) {
+							var x = 0;
+							while (x < mw-1) {
+								var pos = x + mw * (y + mh * z);
+								x += probe(pos, x, y, z);
+							}
+						}
+					}
+				} else {
+					for (var z = 0; z < md; z++) {
+						for (var y = 0; y < mh-1; y++) {
+							for (var x = 0; x < mw-1; x++) {
+								var pos = x + mw * (y + mh * z);
+								var v = map[pos];
+								if (v !== 0) {
+									build(v, x, y, z, 1, 1, 1);
+								}
+							}
+						}
+					}
+				}
+				
+				output.value = rope.join("");
+				
+				return "Success";
+			}
+			
+			
+			window.onload = handleInput;
+		</script>
+	</body>
+</html>

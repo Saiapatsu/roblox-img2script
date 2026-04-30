@@ -96,8 +96,10 @@ model.Parent = workspace
 			}
 			
 			function handleInputImpl() {
-				[, options.sw, options.sh, options.sd, options.mesh, options.mask] 
+				[, options.sw, options.sh, options.sd] 
 					= Array.from(eoptions.elements).map(x => x.value);
+				[options.mesh, options.mask]
+					= Array.from(eoptions.elements).slice(4).map(x => x.checked);
 				
 				var images = Array.from(input.children).filter(x => x.nodeName === "IMG");
 				if (images.length) {

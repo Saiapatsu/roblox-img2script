@@ -266,7 +266,8 @@ model.Parent = workspace
 				function build(v, x, y, z, w, h, d) {
 					var pos8 = (x + mw * (y + mh * z)) << 2;
 					// rope.push(`build(${v}, ${x},${y},${z}, ${w},${h},${d})\n`);
-					rope.push(`build(${v}, ${map8[pos8+0]},${map8[pos8+1]},${map8[pos8+2]},${map8[pos8+3]}, ${x},${y},${z}, ${w},${h},${d})\n`);
+					var vx = "0x" + v.toString(16).padStart(8, "0");
+					rope.push(`build(${vx}, ${map8[pos8+0]},${map8[pos8+1]},${map8[pos8+2]},${map8[pos8+3]}, ${x},${y},${z}, ${w},${h},${d})\n`);
 				}
 				
 				// Returns a hint as to where toward x to probe next

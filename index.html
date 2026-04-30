@@ -305,9 +305,11 @@ model.Parent = workspace
 					}
 				}
 				
+				var t1 = performance.now();
+				
 				output.value = rope.join("");
 				
-				return `Completed in ${performance.now() - t0}ms`;
+				return `Completed in ${t1 - t0}ms process + ${performance.now() - t1}ms output`;
 			}
 			
 			

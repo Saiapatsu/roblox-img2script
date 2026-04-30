@@ -282,7 +282,7 @@ model.Parent = workspace
 					var d = fore(v, pos, w, h);
 					build(v, x, y, z, w, h, d);
 					fill(0, pos, w, h, d);
-					return w == MAX ? MAX : w;
+					return w;
 				}
 				
 				if (options.mesh) {

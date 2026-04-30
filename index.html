@@ -184,6 +184,8 @@ model.Parent = workspace
 				var MAXH = Math.max(1, Math.floor(MAX / sh));
 				var MAXD = Math.max(1, Math.floor(MAX / sd));
 				
+				var count = 0;
+				
 				// Output string (it's actually safe to just += string in
 				// javascript, but I want anyone porting this to Lua to
 				// beware never to do that)
@@ -268,6 +270,7 @@ model.Parent = workspace
 					// rope.push(`build(${v}, ${x},${y},${z}, ${w},${h},${d})\n`);
 					var vx = "0x" + v.toString(16).padStart(8, "0");
 					rope.push(`build(${vx}, ${map8[pos8+0]},${map8[pos8+1]},${map8[pos8+2]},${map8[pos8+3]}, ${x},${y},${z}, ${w},${h},${d})\n`);
+					count++;
 				}
 				
 				// Returns a hint as to where toward x to probe next
@@ -310,7 +313,7 @@ model.Parent = workspace
 				
 				output.value = rope.join("");
 				
-				return `Completed in ${t1 - t0}ms process + ${performance.now() - t1}ms output`;
+				return `Completed in ${t1 - t0}ms process + ${performance.now() - t1}ms output, ${count} parts`;
 			}
 			
 			

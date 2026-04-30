@@ -32,9 +32,9 @@
 			<div id="input" contenteditable=""></div>
 			<form id="options">
 				<div><input type="file" multiple="multiple"></div>
-				<div><label><input type="number" min="0" max="2048">X scale</label></div>
-				<div><label><input type="number" min="0" max="2048">Y scale</label></div>
-				<div><label><input type="number" min="0" max="2048">Z scale</label></div>
+				<div><label><input type="number" value="1" min="0" max="2048">X scale</label></div>
+				<div><label><input type="number" value="1" min="0" max="2048">Y scale</label></div>
+				<div><label><input type="number" value="1" min="0" max="2048">Z scale</label></div>
 				<div><label><input type="checkbox" checked="">Greedy meshing (xyz search order)</label></div>
 				<div><label><input type="checkbox" checked="">#000000 is matte</label></div>
 			</form>
@@ -153,17 +153,26 @@ model.Parent = workspace
 				// UInt32Array view of the image for one element per pixel
 				var map = new Uint32Array(map8.buffer);
 				
+				// ??? Somehow not necessary now that I have a default value="1" set
+				function stir(x) {
+					if (Number.isNaN(Number(x))) return 1;
+					return Math.max(0, Number(x));
+				}
+				
+				var sw = stir(options.sw);
+				var sh = stir(options.sh);
+				var sd = stir(options.sd);
 				var MAX = 2048;
-				var MAXW = Math.max(1, Math.floor(MAX / Math.max(0, options.sw)));
-				var MAXH = Math.max(1, Math.floor(MAX / Math.max(0, options.sh)));
-				var MAXD = Math.max(1, Math.floor(MAX / Math.max(0, options.sd)));
+				var MAXW = Math.max(1, Math.floor(MAX / sw));
+				var MAXH = Math.max(1, Math.floor(MAX / sh));
+				var MAXD = Math.max(1, Math.floor(MAX / sd));
 				
 				// Output string (it's actually safe to just += string in
 				// javascript, but I want anyone porting this to Lua to
 				// beware never to do that)
 				var rope = [
 					`local bounds = Vector3.new(${mw-1}, ${mh-1}, ${md})\n`,
-					`local scale = Vector3.new(${options.sw}, ${options.sh}, ${options.sd})\n`,
+					`local scale = Vector3.new(${sw}, ${sh}, ${sd})\n`,
 					preamble,
 				];
 				

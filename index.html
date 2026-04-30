@@ -31,16 +31,18 @@
 			<p>Paste an image below, or use the Browse button. Some browsers var you drag and drop onto the Browse button.</p>
 			<div id="input" contenteditable=""></div>
 			<form id="options">
-				<p><input type="file" multiple="multiple"></p>
-				<p><label><input type="checkbox" checked="">Greedy meshing (xyz search order)</label></p>
-				<p><label><input type="checkbox" checked="">#000000 is matte</label></p>
+				<div><input type="file" multiple="multiple"></div>
+				<div><label><input type="number" min="0" max="2048">X scale</label></div>
+				<div><label><input type="number" min="0" max="2048">Y scale</label></div>
+				<div><label><input type="number" min="0" max="2048">Z scale</label></div>
+				<div><label><input type="checkbox" checked="">Greedy meshing (xyz search order)</label></div>
+				<div><label><input type="checkbox" checked="">#000000 is matte</label></div>
 			</form>
 		</fieldset>
 		<script id="preamble" type="text/plain">
-local scale = Vector3.new(1, 1, 1)
-local adjust = 0.5 * scale * Vector3.new(bounds.X, -2 * bounds.Y, bounds.Z)
-local origin = Vector3.new(0, 0, 0) - adjust
 local flip = Vector3.new(1, -1, 1)
+local adjust = 0.5 * scale * flip * Vector3.new(bounds.X, 2*bounds.Y, bounds.Z)
+local origin = Vector3.new(0, 0, 0) - adjust
 
 local model = Instance.new("Model")
 local cache = {}
@@ -72,18 +74,20 @@ model.Parent = workspace
 			var screech = document.getElementById("info");
 			
 			var eoptions = document.getElementById("options");
+			var browse = eoptions[0];
 			var options = {};
-			eoptions[1].addEventListener("change", handleInput);
-			eoptions[2].addEventListener("change", handleInput);
+			
+			// All inputs aside from the file input (which has its own routine)
+			// trigger redraws
+			Array.slice(eoptions.elements, 1).forEach(x => x.addEventListener("change", handleInput));
 			
 			var input = document.getElementById("input");
-			var browse = eoptions[0];
 			var sample = document.createElement("img");
 			sample.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAAOlJREFUOMutUrENgzAQ/I9oaJkCiYoBqFKzQGZgBgrPkBlYIDVVBqCy9FO4dekU0ZHX84ImVEZ/d74/H9E/vhT6kkJfrjCXQu9HW7QgSJqcQl+AO3WTUioAQ8Aj3lyVaaVxHommlbq23oWHRdhCGcpdW1OUvBNoWome98O5mTc+OBgWYQyi5O9EkeHGy4HPwrRuIK5XYY/sruHYd0Pc1Y31KNntS2WLojN4hZ8DCNunvIEcJVMzbzwswjZI3K5zOS2THto2olj4r646v7uxGWEFXVUQdNqwHCW7ttm+e5RMwyKswbgVWWncB3EzxFgtIwHpAAAAAElFTkSuQmCC";
 			
 			function handleInput() {
-				options.mesh = eoptions[1].checked;
-				options.mask = eoptions[2].checked;
+				[, options.sw, options.sh, options.sd, options.mesh, options.mask] 
+					= Array.map(eoptions.elements, x => x.value);
 				
 				var images = Array.filter(input.children, x => x.nodeName === "IMG");
 				if (images.length) {
@@ -103,21 +107,27 @@ model.Parent = workspace
 
 			browse.addEventListener("change", () => {
 				var files = browse.files;
+				var m = 0;
+				var n = 1
 				for (var i = 0; i < files.length; i++) {
 					var file = files[i];
 					if (file.type.match("image.*")) {
+						n++;
 						var fr = new FileReader;
 						fr.onload = function() {
 							var image = document.createElement("img");
 							image.src = this.result;
 							image.onload = function() {
 								input.appendChild(image);
-								handleInput();
+								m++;
+								if (m == n) handleInput();
 							}
 						};
 						fr.readAsDataURL(file);
 					}
 				}
+				n--;
+				if (m == n) handleInput();
 			});
 			
 			var ehcanvas = document.createElement("canvas");
@@ -142,10 +152,19 @@ model.Parent = workspace
 				// UInt32Array view of the image for one element per pixel
 				var map = new Uint32Array(map8.buffer);
 				
+				var MAX = 2048;
+				var MAXW = Math.max(1, Math.floor(MAX / Math.max(0, options.sw)));
+				var MAXH = Math.max(1, Math.floor(MAX / Math.max(0, options.sh)));
+				var MAXD = Math.max(1, Math.floor(MAX / Math.max(0, options.sd)));
+				
 				// Output string (it's actually safe to just += string in
 				// javascript, but I want anyone porting this to Lua to
 				// beware never to do that)
-				var rope = [`local bounds = Vector3.new(${mw-1}, ${mh-1}, ${md})\n`, preamble];
+				var rope = [
+					`local bounds = Vector3.new(${mw-1}, ${mh-1}, ${md})\n`,
+					`local scale = Vector3.new(${options.sw}, ${options.sh}, ${options.sd})\n`,
+					preamble,
+				];
 				
 				// Solid black to fully transparent, any other fully transparent
 				// to transparent black/sentinel value
@@ -167,38 +186,35 @@ model.Parent = workspace
 					}
 				}
 				
-				var MAX = 2048;
-				
 				// Scan right for a line of v, return width
 				function right(v, pos) {
 					var i = pos + 1;
-					for (var x = 1; x <= MAX; x++) {
+					for (var x = 1; x <= MAXW; x++) {
 						if (map[i] != v) return x;
 						i += 1;
 					}
-					return MAX;
+					return MAXW;
 				}
 				
 				// Scan down for an area of v, return height
 				function down(v, pos, w) {
 					var i = pos + mw;
-					for (var y = 1; y <= MAX; y++) {
+					for (var y = 1; y <= MAXH; y++) {
 						for (var x = 0; x < w; x++) {
 							if (map[i] != v) return y;
 							i += 1;
 						}
 						i += mw - w;
 					}
-					return MAX;
+					return MAXH;
 				}
 				
 				// Scan fore for a volume of v, return depth
 				function fore(v, pos, w, h) {
 					var i = pos + mw * mh;
-					for (var d = 1; d <= MAX; d++) {
+					for (var d = 1; d <= MAXD; d++) {
 						for (var y = 0; y < h; y++) {
 							for (var x = 0; x < w; x++) {
-								console.log("fore", pos);
 								if (map[i] != v) return d;
 								i += 1;
 							}
@@ -206,7 +222,7 @@ model.Parent = workspace
 						}
 						i += mw * mh - mw * h;
 					}
-					return MAX;
+					return MAXD;
 				}
 				
 				// Fill w,h,d volume at pos with v

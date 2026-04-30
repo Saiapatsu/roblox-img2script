@@ -10,7 +10,7 @@
 				padding: 8px;
 			}
 			#input {
-				height: 50px;
+				min-height: 50px;
 				border: 1px solid lightgrey;
 			}
 			#input:focus {
@@ -28,7 +28,7 @@
 		</fieldset>
 		<fieldset>
 			<legend>Input</legend>
-			<p>Paste an image below, or use the Browse button. Some browsers var you drag and drop onto the Browse button.</p>
+			<p>Paste an image below or use the Browse button. Some browsers let you drag and drop onto the Browse button.</p>
 			<div id="input" contenteditable=""></div>
 			<form id="options">
 				<div><input type="file" multiple="multiple"></div>
@@ -95,8 +95,7 @@ model.Parent = workspace
 					screech.innerHTML = drawProjectile(images);
 				} else {
 					// Draw the demo
-					drawProjectile([sample]);
-					screech.innerHTML = "No sprite loaded";
+					screech.innerHTML = drawProjectile([sample]) + ", using demo image";
 				}
 			}
 			input.addEventListener("drop", () => {
@@ -137,6 +136,8 @@ model.Parent = workspace
 			var preamble = document.getElementById("preamble").innerText;
 			
 			function drawProjectile(sources) {
+				
+				var t0 = performance.now();
 				
 				// Size of image, padded with transparent black to the bottom and right
 				var mw = Math.max.apply(null, sources.map(x => x.naturalWidth)) + 1;
@@ -290,7 +291,7 @@ model.Parent = workspace
 				
 				output.value = rope.join("");
 				
-				return "Success";
+				return `Completed in ${performance.now() - t0}ms`;
 			}
 			
 			

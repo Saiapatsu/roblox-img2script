@@ -24,7 +24,7 @@
 		<fieldset>
 			<legend>Output</legend>
 			<textarea style="height:40vh;width:100%" id="output"></textarea>
-			<p id="info"></p>
+			<p id="info">The script failed to run, check console</p>
 		</fieldset>
 		<fieldset>
 			<legend>Input</legend>
@@ -80,22 +80,31 @@ model.Parent = workspace
 			
 			// All inputs aside from the file input (which has its own routine)
 			// trigger redraws
-			Array.slice(eoptions.elements, 1).forEach(x => x.addEventListener("change", handleInput));
+			Array.from(eoptions.elements).slice(1).forEach(x => x.addEventListener("change", handleInput));
 			
 			var input = document.getElementById("input");
 			var sample = document.createElement("img");
 			sample.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAAOlJREFUOMutUrENgzAQ/I9oaJkCiYoBqFKzQGZgBgrPkBlYIDVVBqCy9FO4dekU0ZHX84ImVEZ/d74/H9E/vhT6kkJfrjCXQu9HW7QgSJqcQl+AO3WTUioAQ8Aj3lyVaaVxHommlbq23oWHRdhCGcpdW1OUvBNoWome98O5mTc+OBgWYQyi5O9EkeHGy4HPwrRuIK5XYY/sruHYd0Pc1Y31KNntS2WLojN4hZ8DCNunvIEcJVMzbzwswjZI3K5zOS2THto2olj4r646v7uxGWEFXVUQdNqwHCW7ttm+e5RMwyKswbgVWWncB3EzxFgtIwHpAAAAAElFTkSuQmCC";
 			
 			function handleInput() {
+				try {
+					handleInputImpl();
+				} catch(e) {
+					console.error(e);
+					screech.innerText = `Error: ${e.message}`;
+				}
+			}
+			
+			function handleInputImpl() {
 				[, options.sw, options.sh, options.sd, options.mesh, options.mask] 
-					= Array.map(eoptions.elements, x => x.value);
+					= Array.from(eoptions.elements).map(x => x.value);
 				
-				var images = Array.filter(input.children, x => x.nodeName === "IMG");
+				var images = Array.from(input.children).filter(x => x.nodeName === "IMG");
 				if (images.length) {
-					screech.innerHTML = drawProjectile(images);
+					screech.innerText = drawProjectile(images);
 				} else {
 					// Draw the demo
-					screech.innerHTML = drawProjectile([sample]) + ", using demo image";
+					screech.innerText = drawProjectile([sample]) + ", using demo image";
 				}
 			}
 			input.addEventListener("drop", () => {

@@ -51,6 +51,7 @@ body {
 		<div><label><input id="sd" type="number" value="1" min="0" max="2048">Z scale</label></div>
 		<div><label><input id="mesh0" name="mesh" value="0" type="radio">No meshing, 1 pixel = 1 part</label></div>
 		<div><label><input id="mesh1" name="mesh" value="1" type="radio" checked="">XYZ greedy meshing</label></div>
+		<div><label><input id="mesh2" name="mesh" value="2" type="radio" checked="">XYZ greedy meshing, Y axis split-avoidant</label></div>
 		<div><label><input id="matte" type="checkbox" checked="">Matte color: </label><input id="mattecolor" value="#000000" type="color"></div>
 		<div><label><input id="le" type="checkbox" checked="">Little-endian</label></div>
 	</form>
@@ -125,7 +126,7 @@ function handleInputImpl() {
 		= [o.sw, o.sh, o.sd].map(x => x.value);
 	[options.matte, options.le]
 		= [o.matte, o.le].map(x => x.checked);
-	options.mesh = Number(o.mesh1.checked);
+	options.mesh = Number(Array.from(eoptions.elements.mesh).find(x => x.checked).value);
 	var hrgb = o.mattecolor.value;
 	var agbr = o.le
 		? "0xff" + hrgb.slice(5, 7) + hrgb.slice(3, 5) + hrgb.slice(1, 3)
@@ -136,12 +137,16 @@ function handleInputImpl() {
 	console.log(options);
 	console.log(agbr);
 	
+	var probe = options.mesh == 1 ? probeGreedy
+		: options.mesh == 2 ? probeYCareful
+		: probeOne;
+	
 	var images = Array.from(input.children).filter(x => x.nodeName === "IMG");
 	if (images.length) {
-		screech.innerText = drawProjectile(images);
+		screech.innerText = drawProjectile(images, probe);
 	} else {
 		// Draw the demo
-		screech.innerText = drawProjectile([sample]) + ", using demo image";
+		screech.innerText = drawProjectile([sample], probe) + ", using demo image";
 	}
 }
 input.addEventListener("drop", () => {
@@ -193,6 +198,8 @@ var sw, sh, sd;
 var MAXW, MAXH, MAXD;
 // Amount of volumes output so far
 var count;
+// Amount of outputable pixels
+var countSolid;
 // Output string builder
 var rope = [];
 
@@ -203,19 +210,25 @@ var rope = [];
 // For those confused: check alpha channel in u8a,
 // clear entire pixel in u32a
 function normalizeAlpha(matte, color) {
+	var n = 0;
 	if (matte) {
 		for (var i = 0; i < map8.length; i+=4) {
 			if (map8[i+3] == 0 || map32[i>>2] == color) {
 				map32[i>>2] = 0;
+			} else {
+				n++;
 			}
 		}
 	} else {
 		for (var i = 0; i < map8.length; i+=4) {
 			if (map8[i+3] == 0) {
 				map32[i>>2] = 0;
+			} else {
+				n++;
 			}
 		}
 	}
+	return n;
 }
 
 // Scan right for a line of v, return width
@@ -237,6 +250,22 @@ function down(pos, max, v, w) {
 			i += 1;
 		}
 		i += mw - w;
+	}
+	return max;
+}
+
+// Scan down for an area of v, return height
+function downCareful(pos, max, v, w) {
+	var i = pos + mw;
+	for (var y = 1; y <= max; y++) {
+		for (var x = 0; x < w; x++) {
+			if (map32[i] != v) return y;
+			i += 1;
+		}
+		i += mw - w;
+		if (map32[i-1-mw] == v && map32[i+w-mw] == v) {
+			return y;
+		}
 	}
 	return max;
 }
@@ -290,6 +319,21 @@ function probeGreedy(pos, x, y, z) {
 	return w;
 }
 
+// Look for largest volume at pos with the greediest method
+// BUT avoid moving toward +y if there's v to the left and right of the row
+// to check, to avoid causing a split
+// Returns width as a hint as to how many units in x to skip
+function probeYCareful(pos, x, y, z) {
+	var v = map32[pos];
+	if (v == 0) return 1;
+	var w = right(pos, Math.min(MAXW, mw - x), v);
+	var h = downCareful(pos, Math.min(MAXH, mh - y), v, w);
+	var d = fore(pos, Math.min(MAXD, md - z), v, w, h);
+	build(v, x, y, z, w, h, d);
+	fill(pos, 0, w, h, d);
+	return w;
+}
+
 // Just output one volume per pixel/voxel at pos
 function probeOne(pos, x, y, z) {
 	var v = map32[pos];
@@ -307,7 +351,7 @@ function stir(x) {
 	return Math.max(0, Number(x));
 }
 
-function drawProjectile(sources) {
+function drawProjectile(sources, probe) {
 	
 	var t0 = performance.now();
 	
@@ -338,7 +382,7 @@ function drawProjectile(sources) {
 	map32 = new Uint32Array(map8.buffer);
 	
 	// Turn all fully transparent and masked pixels into #0000
-	normalizeAlpha(options.matte, options.mattecolor);
+	countSolid = normalizeAlpha(options.matte, options.mattecolor);
 	
 	// Output string (it's actually safe to just += string in JS, but
 	// I want anyone porting this to Lua to beware never to do that)
@@ -347,8 +391,6 @@ function drawProjectile(sources) {
 		`local bounds = Vector3.new(${mw}, ${mh}, ${md})\n`,
 		`local scale = Vector3.new(${sw}, ${sh}, ${sd})\n`,
 		preamble);
-	
-	var probe = options.mesh ? probeGreedy : probeOne;
 	
 	for (var z = 0; z < md; z++) {
 		for (var y = 0; y < mh; y++) {
@@ -367,7 +409,7 @@ function drawProjectile(sources) {
 	
 	var t2 = performance.now();
 	
-	return `Completed in ${t1-t0}ms process + ${t2-t1}ms output, ${count} parts`;
+	return `Completed in ${t1-t0}ms process + ${t2-t1}ms output, ${count} parts (${Math.round(count / countSolid * 100)}%)`;
 }
 
 window.onload = handleInput;

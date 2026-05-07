@@ -2,11 +2,7 @@
 <!--
 
 Add preamble config field that gets scale x etc. interpolated into it
-Add more meshing algorithms, pick the best result (lowest part count, last method if tied)
-	One that checks one column right, one row down, one depth up, repeat until none are available
-	One that tries much, much harder to find an optimized free space
 Add auto redo on change/add checkbox so it won't lag you every time you make a minor change
-Don't redo on images blur unless something actually changed
 
 -->
 <html><head>
@@ -106,9 +102,14 @@ var eoptions = document.getElementById("options");
 var browse = eoptions[0];
 var options = {};
 
+var lastInput = [1];
+
 // All inputs aside from the file input (which has its own routine)
 // trigger redraws
-Array.from(eoptions.elements).slice(1).forEach(x => x.addEventListener("change", handleInput));
+Array.from(eoptions.elements).slice(1).forEach(x => x.addEventListener("change", x => {
+	lastInput = [1];
+	handleInput();
+}));
 
 var input = document.getElementById("input");
 var sample = document.createElement("img");
@@ -124,6 +125,13 @@ function handleInput() {
 }
 
 function handleInputImpl() {
+	
+	var children = Array.from(input.children);
+	if (children.length == lastInput.length && children.every((x, i) => lastInput[i] === x)) {
+		return;
+	}
+	lastInput = children;
+	
 	var o = eoptions.elements;
 	[options.sw, options.sh, options.sd]
 		= [o.sw, o.sh, o.sd].map(x => x.value);
@@ -137,7 +145,7 @@ function handleInputImpl() {
 	
 	var comment = [];
 	
-	var images = Array.from(input.children).filter(x => x.nodeName === "IMG");
+	var images = children.filter(x => x.nodeName === "IMG");
 	
 	if (!images.length) {
 		images = [sample];

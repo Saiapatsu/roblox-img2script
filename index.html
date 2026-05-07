@@ -167,21 +167,27 @@ var hcanvas = ehcanvas.getContext("2d");
 
 var preamble = document.getElementById("preamble").innerText;
 
+// -----------------------------------------------------------------------------
+
+// UInt*Array image data views
+var map8, map32;
+// Map size in each dimension plus one in padding
+var mw, mh, md;
+// Output part scale parameters
+var sw, sh, sd;
+// Max amount of cells in each dimension to probe to stay below 2048 stud limit
+var MAXW, MAXH, MAXD;
+// Amount of volumes output so far
+var count;
 // Output string builder
 var rope = [];
 
 // -----------------------------------------------------------------------------
-// Bitmap data
-
-var map8, map32;
-var mw, mh, md;
-var MAXW, MAXH, MAXD;
-var count;
 
 // Solid black to fully transparent, any other fully transparent
 // to transparent black/sentinel value
 function normalizeAlpha(mask) {
-	if (options.mask) {
+	if (mask) {
 		for (var i = 0; i < map8.length; i+=4) {
 			if (map8[i] == 0 && map8[i+1] == 0 && map8[i+2] == 0 && map8[i+3] == 255) {
 				map32[i>>2] = 0;
@@ -283,55 +289,56 @@ function probeOne(pos, x, y, z) {
 
 // -----------------------------------------------------------------------------
 
+// ??? Somehow not necessary now that I have a default value="1" set
+function stir(x) {
+	if (Number.isNaN(Number(x))) return 1;
+	return Math.max(0, Number(x));
+}
+
 function drawProjectile(sources) {
 	
 	var t0 = performance.now();
 	
-	// Size of image, padded with transparent black to the bottom and right
+	// Size of image with padding
 	mw = Math.max.apply(null, sources.map(x => x.naturalWidth)) + 1;
 	mh = Math.max.apply(null, sources.map(x => x.naturalHeight)) + 1;
-	md = sources.length;
+	md = sources.length + 1;
 	
-	// Extract bitmap data from img element. Draw each image to
-	// a film strip of sorts, later interpreted in 3D. Leave one padding layer.
-	ehcanvas.width = mw;
-	ehcanvas.height = mh * (md + 1);
-	sources.forEach((source, i) => hcanvas.drawImage(source, 0, i * mh));
+	sw = stir(options.sw);
+	sh = stir(options.sh);
+	sd = stir(options.sd);
 	
-	map8 = hcanvas.getImageData(0, 0, ehcanvas.width, ehcanvas.height).data;
-	// UInt32Array view of the image for one element per pixel
-	map32 = new Uint32Array(map8.buffer);
-	
-	// ??? Somehow not necessary now that I have a default value="1" set
-	function stir(x) {
-		if (Number.isNaN(Number(x))) return 1;
-		return Math.max(0, Number(x));
-	}
-	
-	var sw = stir(options.sw);
-	var sh = stir(options.sh);
-	var sd = stir(options.sd);
-	MAX = 2048;
-	MAXW = Math.max(1, Math.floor(MAX / sw));
-	MAXH = Math.max(1, Math.floor(MAX / sh));
-	MAXD = Math.max(1, Math.floor(MAX / sd));
+	MAXW = Math.max(1, Math.floor(2048 / sw));
+	MAXH = Math.max(1, Math.floor(2048 / sh));
+	MAXD = Math.max(1, Math.floor(2048 / sd));
 	
 	count = 0;
 	
-	// Output string (it's actually safe to just += string in
-	// javascript, but I want anyone porting this to Lua to
-	// beware never to do that)
+	// Extract bitmap data from img element.
+	// Draw each image to a film strip, later interpreted as 3D.
+	// Canvas gets cleared to #0000 on resize.
+	ehcanvas.width = mw;
+	ehcanvas.height = mh * md;
+	sources.forEach((source, i) => hcanvas.drawImage(source, 0, i * mh));
+	
+	// UInt8Array and UInt32Array views for 4bpp and 1el/pixel respectively
+	map8 = hcanvas.getImageData(0, 0, ehcanvas.width, ehcanvas.height).data;
+	map32 = new Uint32Array(map8.buffer);
+	
+	// Turn all fully transparent and masked pixels into #0000
+	normalizeAlpha(options.mask);
+	
+	// Output string (it's actually safe to just += string in JS, but
+	// I want anyone porting this to Lua to beware never to do that)
 	rope.length = 0;
 	rope.push(
-		`local bounds = Vector3.new(${mw-1}, ${mh-1}, ${md})\n`,
+		`local bounds = Vector3.new(${mw-1}, ${mh-1}, ${md-1})\n`,
 		`local scale = Vector3.new(${sw}, ${sh}, ${sd})\n`,
 		preamble);
 	
-	normalizeAlpha(options.mask);
-	
 	var probe = options.mesh ? probeGreedy : probeOne;
 	
-	for (var z = 0; z < md; z++) {
+	for (var z = 0; z < md-1; z++) {
 		for (var y = 0; y < mh-1; y++) {
 			var x = 0;
 			while (x < mw-1) {
@@ -345,7 +352,9 @@ function drawProjectile(sources) {
 	
 	output.value = rope.join("");
 	
-	return `Completed in ${t1 - t0}ms process + ${performance.now() - t1}ms output, ${count} parts`;
+	var t2 = performance.now();
+	
+	return `Completed in ${t1-t0}ms process + ${t2-t1}ms output, ${count} parts`;
 }
 
 window.onload = handleInput;

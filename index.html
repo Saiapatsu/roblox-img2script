@@ -3,6 +3,8 @@
 
 Add preamble config field that gets scale x etc. interpolated into it
 Add auto redo on change/add checkbox so it won't lag you every time you make a minor change
+Add meshing mode that balances xyz until it hits something
+Add voxel file format decoder
 
 -->
 <html><head>
@@ -38,10 +40,11 @@ body {
 
 <fieldset>
 	<legend>Input</legend>
-	<div>Paste or drag and drop an image into the textarea or the Browse button.</div>
+	<div>Drag-and-drop or paste an image here or onto the Browse button.</div>
 	<div id="input" contenteditable=""></div>
 	<form id="options">
 		<div><input type="file" multiple="multiple"></div>
+		<hr>
 		<div><label><input id="sw" type="number" value="1" min="0" max="2048">X scale</label></div>
 		<div><label><input id="sh" type="number" value="1" min="0" max="2048">Y scale</label></div>
 		<div><label><input id="sd" type="number" value="1" min="0" max="2048">Z scale</label></div>
@@ -49,18 +52,24 @@ body {
 		<div><label><input id="mesh1" type="checkbox" checked="">XYZ greedy meshing, classic</label></div>
 		<div><label><input id="mesh2" type="checkbox" checked="">XYZ greedy meshing, Y axis split-avoidant</label></div>
 		<div><label><input id="matte" type="checkbox" checked="">Matte color: </label><input id="mattecolor" value="#000000" type="color"></div>
-		<div><label><input id="le" type="checkbox" checked="">Little-endian system</label></div>
+		<hr>
+		<div>Pointless options that do nothing:</div>
+		<div><label><input id="le" type="checkbox" checked="">Little-endian CPU</label></div>
 		<div><label><input id="norm" type="checkbox" checked="">Normalize fully transparent pixels (apparently browsers already do this for you)</label></div>
 	</form>
 </fieldset>
 
 <p>
-<div>The scale parameters above also limit the maximum size of a greedy mesh block to no more than 2048 studs.</div>
 <div>Transparency is supported.</div>
-<div>3D is supported, add more than one image.</div>
+<div>3D is supported, add more than one image and turn on 3D.</div>
 <div>Do not paste huge images, processing is still quick but writing the output isn't.</div>
-<div>Colors can potentially get gamma-corrected.</div>
-<div>Any image your browser can decode works, I've even converted an .ico before.</div>
+<div>Any image that your browser can decode works, I've even converted an .ico before.</div>
+<div>It cannot get anything beyond the first frame of an animated image. (TODO filmstrip instead of 3D or last-2D mode)</div>
+<div>Colors can potentially get gamma-corrected, I've had problems with that in another web utility.</div>
+<div>Increasing the scale parameters above also limits the size of a greedy meshed volume to under 2048 studs per axis.</div>
+<div>Classic greedy meshing expands as much as it can toward X, then Y, then Z.
+Split-avoidant meshing does the same but stops when it's about to expand toward Y and
+there's a matching color to the left and right of the row it'd check, leaving it for later.</div>
 </p>
 
 <script id="preamble" type="text/plain">

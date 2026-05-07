@@ -207,32 +207,32 @@ function normalizeAlpha(mask) {
 }
 
 // Scan right for a line of v, return width
-function right(v, pos) {
+function right(pos, max, v) {
 	var i = pos + 1;
-	for (var x = 1; x <= MAXW; x++) {
+	for (var x = 1; x <= max; x++) {
 		if (map32[i] != v) return x;
 		i += 1;
 	}
-	return MAXW;
+	return max;
 }
 
 // Scan down for an area of v, return height
-function down(v, pos, w) {
+function down(pos, max, v, w) {
 	var i = pos + mw;
-	for (var y = 1; y <= MAXH; y++) {
+	for (var y = 1; y <= max; y++) {
 		for (var x = 0; x < w; x++) {
 			if (map32[i] != v) return y;
 			i += 1;
 		}
 		i += mw - w;
 	}
-	return MAXH;
+	return max;
 }
 
 // Scan fore for a volume of v, return depth
-function fore(v, pos, w, h) {
+function fore(pos, max, v, w, h) {
 	var i = pos + mw * mh;
-	for (var d = 1; d <= MAXD; d++) {
+	for (var d = 1; d <= max; d++) {
 		for (var y = 0; y < h; y++) {
 			for (var x = 0; x < w; x++) {
 				if (map32[i] != v) return d;
@@ -242,11 +242,11 @@ function fore(v, pos, w, h) {
 		}
 		i += mw * mh - mw * h;
 	}
-	return MAXD;
+	return max;
 }
 
 // Fill w,h,d volume at pos with v
-function fill(v, pos, w, h, d) {
+function fill(pos, v, w, h, d) {
 	for (var z = 0; z < d; z++) {
 		for (var y = 0; y < h; y++) {
 			for (var x = 0; x < w; x++) {
@@ -270,11 +270,11 @@ function build(v, x, y, z, w, h, d) {
 function probeGreedy(pos, x, y, z) {
 	var v = map32[pos];
 	if (v == 0) return 1;
-	var w = right(v, pos);
-	var h = down(v, pos, w);
-	var d = fore(v, pos, w, h);
+	var w = right(pos, Math.min(MAXW, mw - x), v);
+	var h = down(pos, Math.min(MAXH, mh - y), v, w);
+	var d = fore(pos, Math.min(MAXD, md - z), v, w, h);
 	build(v, x, y, z, w, h, d);
-	fill(0, pos, w, h, d);
+	fill(pos, 0, w, h, d);
 	return w;
 }
 
@@ -300,9 +300,9 @@ function drawProjectile(sources) {
 	var t0 = performance.now();
 	
 	// Size of image with padding
-	mw = Math.max.apply(null, sources.map(x => x.naturalWidth)) + 1;
-	mh = Math.max.apply(null, sources.map(x => x.naturalHeight)) + 1;
-	md = sources.length + 1;
+	mw = Math.max.apply(null, sources.map(x => x.naturalWidth));
+	mh = Math.max.apply(null, sources.map(x => x.naturalHeight));
+	md = sources.length;
 	
 	sw = stir(options.sw);
 	sh = stir(options.sh);
@@ -332,18 +332,19 @@ function drawProjectile(sources) {
 	// I want anyone porting this to Lua to beware never to do that)
 	rope.length = 0;
 	rope.push(
-		`local bounds = Vector3.new(${mw-1}, ${mh-1}, ${md-1})\n`,
+		`local bounds = Vector3.new(${mw}, ${mh}, ${md})\n`,
 		`local scale = Vector3.new(${sw}, ${sh}, ${sd})\n`,
 		preamble);
 	
 	var probe = options.mesh ? probeGreedy : probeOne;
 	
-	for (var z = 0; z < md-1; z++) {
-		for (var y = 0; y < mh-1; y++) {
+	for (var z = 0; z < md; z++) {
+		for (var y = 0; y < mh; y++) {
 			var x = 0;
-			while (x < mw-1) {
+			while (x < mw) {
 				var pos = x + mw * (y + mh * z);
-				x += probe(pos, x, y, z);
+				var xx = probe(pos, x, y, z);
+				x += Math.max(1, xx);
 			}
 		}
 	}

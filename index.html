@@ -49,9 +49,8 @@ body {
 		<div><label><input id="sw" type="number" value="1" min="0" max="2048">X scale</label></div>
 		<div><label><input id="sh" type="number" value="1" min="0" max="2048">Y scale</label></div>
 		<div><label><input id="sd" type="number" value="1" min="0" max="2048">Z scale</label></div>
-		<div><label><input id="mesh0" name="mesh" value="0" type="radio">No meshing, 1 pixel = 1 part</label></div>
-		<div><label><input id="mesh1" name="mesh" value="1" type="radio" checked="">XYZ greedy meshing</label></div>
-		<div><label><input id="mesh2" name="mesh" value="2" type="radio" checked="">XYZ greedy meshing, Y axis split-avoidant</label></div>
+		<div><label><input id="mesh1" value="1" type="checkbox" checked="">XYZ greedy meshing, classic</label></div>
+		<div><label><input id="mesh2" value="2" type="checkbox" checked="">XYZ greedy meshing, Y axis split-avoidant</label></div>
 		<div><label><input id="matte" type="checkbox" checked="">Matte color: </label><input id="mattecolor" value="#000000" type="color"></div>
 		<div><label><input id="le" type="checkbox" checked="">Little-endian</label></div>
 	</form>
@@ -126,28 +125,56 @@ function handleInputImpl() {
 		= [o.sw, o.sh, o.sd].map(x => x.value);
 	[options.matte, options.le]
 		= [o.matte, o.le].map(x => x.checked);
-	options.mesh = Number(Array.from(eoptions.elements.mesh).find(x => x.checked).value);
 	var hrgb = o.mattecolor.value;
 	var agbr = o.le
 		? "0xff" + hrgb.slice(5, 7) + hrgb.slice(3, 5) + hrgb.slice(1, 3)
 		: hrgb.slice(1, 3) + hrgb.slice(3, 5) + hrgb.slice(5, 7) + "0xff";
 	options.mattecolor = Number(agbr);
 	
-	console.log(eoptions.elements[6].value);
-	console.log(options);
-	console.log(agbr);
-	
-	var probe = options.mesh == 1 ? probeGreedy
-		: options.mesh == 2 ? probeYCareful
-		: probeOne;
+	var comment = [];
 	
 	var images = Array.from(input.children).filter(x => x.nodeName === "IMG");
-	if (images.length) {
-		screech.innerText = drawProjectile(images, probe);
-	} else {
-		// Draw the demo
-		screech.innerText = drawProjectile([sample], probe) + ", using demo image";
+	
+	if (!images.length) {
+		images = [sample];
+		comment.push("Using demo image");
 	}
+	
+	var probes = [
+		{el: o.mesh1, probe: probeGreedy, name: "Classic"},
+		{el: o.mesh2, probe: probeYCareful, name: "Split-avoidant"},
+	].filter(x => x.el.checked);
+	
+	if (!probes.length) {
+		probes = [{probe: probeOne, name: "Part per pixel"}];
+	}
+	
+	var bestV = null;
+	var bestN = Number.POSITIVE_INFINITY;
+	
+	probes.forEach(method => {
+		rope = [];
+		count = 0;
+		
+		var t0 = performance.now();
+		drawProjectile(images, method.probe);
+		var t1 = performance.now();
+		
+		comment.push(`${method.name}: ${t1-t0}ms, ${count} parts, ${Math.round(count / countSolid * 100)}%`);
+		
+		if (count < bestN) {
+			bestV = {rope, name: method.name};
+			bestN = count;
+		}
+	});
+	
+	var t0 = performance.now();
+	output.value = bestV.rope.join("");
+	var t1 = performance.now();
+	
+	comment.push(`Output: ${t1-t0}ms`);
+	comment.push(`Using ${bestV.name}`)
+	screech.innerText = comment.join("\n");
 }
 input.addEventListener("drop", () => {
 	setTimeout(() => {
@@ -351,10 +378,10 @@ function stir(x) {
 	return Math.max(0, Number(x));
 }
 
+// TODO don't repeat most of this work? Well I can't keep an untouched
+// copy on hand because that'll make memory usage triple, not double the
+// source images
 function drawProjectile(sources, probe) {
-	
-	var t0 = performance.now();
-	
 	// Size of image with padding
 	mw = Math.max.apply(null, sources.map(x => x.naturalWidth));
 	mh = Math.max.apply(null, sources.map(x => x.naturalHeight));
@@ -367,8 +394,6 @@ function drawProjectile(sources, probe) {
 	MAXW = Math.max(1, Math.floor(2048 / sw));
 	MAXH = Math.max(1, Math.floor(2048 / sh));
 	MAXD = Math.max(1, Math.floor(2048 / sd));
-	
-	count = 0;
 	
 	// Extract bitmap data from img element.
 	// Draw each image to a film strip, later interpreted as 3D.
@@ -386,7 +411,6 @@ function drawProjectile(sources, probe) {
 	
 	// Output string (it's actually safe to just += string in JS, but
 	// I want anyone porting this to Lua to beware never to do that)
-	rope.length = 0;
 	rope.push(
 		`local bounds = Vector3.new(${mw}, ${mh}, ${md})\n`,
 		`local scale = Vector3.new(${sw}, ${sh}, ${sd})\n`,
@@ -402,14 +426,6 @@ function drawProjectile(sources, probe) {
 			}
 		}
 	}
-	
-	var t1 = performance.now();
-	
-	output.value = rope.join("");
-	
-	var t2 = performance.now();
-	
-	return `Completed in ${t1-t0}ms process + ${t2-t1}ms output, ${count} parts (${Math.round(count / countSolid * 100)}%)`;
 }
 
 window.onload = handleInput;

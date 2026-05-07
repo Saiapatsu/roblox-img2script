@@ -46,11 +46,13 @@ body {
 	<div id="input" contenteditable=""></div>
 	<form id="options">
 		<div><input type="file" multiple="multiple"></div>
-		<div><label><input type="number" value="1" min="0" max="2048">X scale</label></div>
-		<div><label><input type="number" value="1" min="0" max="2048">Y scale</label></div>
-		<div><label><input type="number" value="1" min="0" max="2048">Z scale</label></div>
-		<div><label><input type="checkbox" checked="">Greedy meshing (xyz search order)</label></div>
-		<div><label><input type="checkbox" checked="">#000000 is matte</label></div>
+		<div><label><input id="sw" type="number" value="1" min="0" max="2048">X scale</label></div>
+		<div><label><input id="sh" type="number" value="1" min="0" max="2048">Y scale</label></div>
+		<div><label><input id="sd" type="number" value="1" min="0" max="2048">Z scale</label></div>
+		<div><label><input id="mesh0" name="mesh" value="0" type="radio">No meshing, 1 pixel = 1 part</label></div>
+		<div><label><input id="mesh1" name="mesh" value="1" type="radio" checked="">XYZ greedy meshing</label></div>
+		<div><label><input id="matte" type="checkbox" checked="">Matte color: </label><input id="mattecolor" value="#000000" type="color"></div>
+		<div><label><input id="le" type="checkbox" checked="">Little-endian</label></div>
 	</form>
 	<p>
 	<div>The scale parameters above also limit the maximum size of a greedy mesh block to no more than 2048 studs.</div>
@@ -117,10 +119,21 @@ function handleInput() {
 }
 
 function handleInputImpl() {
-	[, options.sw, options.sh, options.sd] 
-		= Array.from(eoptions.elements).map(x => x.value);
-	[options.mesh, options.mask]
-		= Array.from(eoptions.elements).slice(4).map(x => x.checked);
+	var o = eoptions.elements;
+	[options.sw, options.sh, options.sd] 
+		= [o.sw, o.sh, o.sd].map(x => x.value);
+	[options.matte, options.le]
+		= [o.matte, o.le].map(x => x.checked);
+	options.mesh = Number(o.mesh1.checked);
+	var hrgb = o.mattecolor.value;
+	var agbr = o.le
+		? "0xff" + hrgb.slice(5, 7) + hrgb.slice(3, 5) + hrgb.slice(1, 3)
+		: hrgb.slice(1, 3) + hrgb.slice(3, 5) + hrgb.slice(5, 7) + "0xff";
+	options.mattecolor = Number(agbr);
+	
+	console.log(eoptions.elements[6].value);
+	console.log(options);
+	console.log(agbr);
 	
 	var images = Array.from(input.children).filter(x => x.nodeName === "IMG");
 	if (images.length) {
@@ -186,19 +199,17 @@ var rope = [];
 
 // Solid black to fully transparent, any other fully transparent
 // to transparent black/sentinel value
-function normalizeAlpha(mask) {
-	if (mask) {
+// For those confused: check alpha channel in u8a,
+// clear entire pixel in u32a
+function normalizeAlpha(matte, color) {
+	if (matte) {
 		for (var i = 0; i < map8.length; i+=4) {
-			if (map8[i] == 0 && map8[i+1] == 0 && map8[i+2] == 0 && map8[i+3] == 255) {
-				map32[i>>2] = 0;
-			} else if (map8[i+3] == 0) {
+			if (map8[i+3] == 0 || map32[i>>2] == color) {
 				map32[i>>2] = 0;
 			}
 		}
 	} else {
 		for (var i = 0; i < map8.length; i+=4) {
-			// For those confused: check alpha channel in u8a,
-			// clear entire pixel in u32a
 			if (map8[i+3] == 0) {
 				map32[i>>2] = 0;
 			}
@@ -326,7 +337,7 @@ function drawProjectile(sources) {
 	map32 = new Uint32Array(map8.buffer);
 	
 	// Turn all fully transparent and masked pixels into #0000
-	normalizeAlpha(options.mask);
+	normalizeAlpha(options.matte, options.mattecolor);
 	
 	// Output string (it's actually safe to just += string in JS, but
 	// I want anyone porting this to Lua to beware never to do that)

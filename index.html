@@ -167,14 +167,130 @@ var hcanvas = ehcanvas.getContext("2d");
 
 var preamble = document.getElementById("preamble").innerText;
 
+// Output string builder
+var rope = [];
+
+// -----------------------------------------------------------------------------
+// Bitmap data
+
+var map8, map32;
+var mw, mh, md;
+var MAXW, MAXH, MAXD;
+var count;
+
+// Solid black to fully transparent, any other fully transparent
+// to transparent black/sentinel value
+function normalizeAlpha(mask) {
+	if (options.mask) {
+		for (var i = 0; i < map8.length; i+=4) {
+			if (map8[i] == 0 && map8[i+1] == 0 && map8[i+2] == 0 && map8[i+3] == 255) {
+				map32[i>>2] = 0;
+			} else if (map8[i+3] == 0) {
+				map32[i>>2] = 0;
+			}
+		}
+	} else {
+		for (var i = 0; i < map8.length; i+=4) {
+			// For those confused: check alpha channel in u8a,
+			// clear entire pixel in u32a
+			if (map8[i+3] == 0) {
+				map32[i>>2] = 0;
+			}
+		}
+	}
+}
+
+// Scan right for a line of v, return width
+function right(v, pos) {
+	var i = pos + 1;
+	for (var x = 1; x <= MAXW; x++) {
+		if (map32[i] != v) return x;
+		i += 1;
+	}
+	return MAXW;
+}
+
+// Scan down for an area of v, return height
+function down(v, pos, w) {
+	var i = pos + mw;
+	for (var y = 1; y <= MAXH; y++) {
+		for (var x = 0; x < w; x++) {
+			if (map32[i] != v) return y;
+			i += 1;
+		}
+		i += mw - w;
+	}
+	return MAXH;
+}
+
+// Scan fore for a volume of v, return depth
+function fore(v, pos, w, h) {
+	var i = pos + mw * mh;
+	for (var d = 1; d <= MAXD; d++) {
+		for (var y = 0; y < h; y++) {
+			for (var x = 0; x < w; x++) {
+				if (map32[i] != v) return d;
+				i += 1;
+			}
+			i += mw - w;
+		}
+		i += mw * mh - mw * h;
+	}
+	return MAXD;
+}
+
+// Fill w,h,d volume at pos with v
+function fill(v, pos, w, h, d) {
+	for (var z = 0; z < d; z++) {
+		for (var y = 0; y < h; y++) {
+			for (var x = 0; x < w; x++) {
+				map32[pos + x + mw * (y + mh * z)] = v;
+			}
+		}
+	}
+}
+
+// Output a volume
+function build(v, x, y, z, w, h, d) {
+	var pos8 = (x + mw * (y + mh * z)) << 2;
+	// rope.push(`build(${v}, ${x},${y},${z}, ${w},${h},${d})\n`);
+	var vx = "0x" + v.toString(16).padStart(8, "0");
+	rope.push(`build(${vx}, ${map8[pos8+0]},${map8[pos8+1]},${map8[pos8+2]},${map8[pos8+3]}, ${x},${y},${z}, ${w},${h},${d})\n`);
+	count++;
+}
+
+// Look for largest volume at pos with the greediest method
+// Returns width as a hint as to how many units in x to skip
+function probeGreedy(pos, x, y, z) {
+	var v = map32[pos];
+	if (v == 0) return 1;
+	var w = right(v, pos);
+	var h = down(v, pos, w);
+	var d = fore(v, pos, w, h);
+	build(v, x, y, z, w, h, d);
+	fill(0, pos, w, h, d);
+	return w;
+}
+
+// Just output one volume per pixel/voxel at pos
+function probeOne(pos, x, y, z) {
+	var v = map32[pos];
+	if (v !== 0) {
+		build(v, x, y, z, 1, 1, 1);
+	}
+	return 1;
+}
+
+// -----------------------------------------------------------------------------
+
 function drawProjectile(sources) {
 	
 	var t0 = performance.now();
 	
 	// Size of image, padded with transparent black to the bottom and right
-	var mw = Math.max.apply(null, sources.map(x => x.naturalWidth)) + 1;
-	var mh = Math.max.apply(null, sources.map(x => x.naturalHeight)) + 1;
-	var md = sources.length;
+	mw = Math.max.apply(null, sources.map(x => x.naturalWidth)) + 1;
+	mh = Math.max.apply(null, sources.map(x => x.naturalHeight)) + 1;
+	md = sources.length;
 	
 	// Extract bitmap data from img element. Draw each image to
 	// a film strip of sorts, later interpreted in 3D. Leave one padding layer.
@@ -182,9 +298,9 @@ function drawProjectile(sources) {
 	ehcanvas.height = mh * (md + 1);
 	sources.forEach((source, i) => hcanvas.drawImage(source, 0, i * mh));
 	
-	var map8 = hcanvas.getImageData(0, 0, ehcanvas.width, ehcanvas.height).data;
+	map8 = hcanvas.getImageData(0, 0, ehcanvas.width, ehcanvas.height).data;
 	// UInt32Array view of the image for one element per pixel
-	var map = new Uint32Array(map8.buffer);
+	map32 = new Uint32Array(map8.buffer);
 	
 	// ??? Somehow not necessary now that I have a default value="1" set
 	function stir(x) {
@@ -195,132 +311,32 @@ function drawProjectile(sources) {
 	var sw = stir(options.sw);
 	var sh = stir(options.sh);
 	var sd = stir(options.sd);
-	var MAX = 2048;
-	var MAXW = Math.max(1, Math.floor(MAX / sw));
-	var MAXH = Math.max(1, Math.floor(MAX / sh));
-	var MAXD = Math.max(1, Math.floor(MAX / sd));
+	MAX = 2048;
+	MAXW = Math.max(1, Math.floor(MAX / sw));
+	MAXH = Math.max(1, Math.floor(MAX / sh));
+	MAXD = Math.max(1, Math.floor(MAX / sd));
 	
-	var count = 0;
+	count = 0;
 	
 	// Output string (it's actually safe to just += string in
 	// javascript, but I want anyone porting this to Lua to
 	// beware never to do that)
-	var rope = [
+	rope.length = 0;
+	rope.push(
 		`local bounds = Vector3.new(${mw-1}, ${mh-1}, ${md})\n`,
 		`local scale = Vector3.new(${sw}, ${sh}, ${sd})\n`,
-		preamble,
-	];
+		preamble);
 	
-	// Solid black to fully transparent, any other fully transparent
-	// to transparent black/sentinel value
-	if (options.mask) {
-		for (var i = 0; i < map8.length; i+=4) {
-			if (map8[i] == 0 && map8[i+1] == 0 && map8[i+2] == 0 && map8[i+3] == 255) {
-				map[i>>2] = 0;
-			} else if (map8[i+3] == 0) {
-				map[i>>2] = 0;
-			}
-		}
-	} else {
-		for (var i = 0; i < map8.length; i+=4) {
-			// For those confused: check alpha channel in u8a,
-			// clear entire pixel in u32a
-			if (map8[i+3] == 0) {
-				map[i>>2] = 0;
-			}
-		}
-	}
+	normalizeAlpha(options.mask);
 	
-	// Scan right for a line of v, return width
-	function right(v, pos) {
-		var i = pos + 1;
-		for (var x = 1; x <= MAXW; x++) {
-			if (map[i] != v) return x;
-			i += 1;
-		}
-		return MAXW;
-	}
+	var probe = options.mesh ? probeGreedy : probeOne;
 	
-	// Scan down for an area of v, return height
-	function down(v, pos, w) {
-		var i = pos + mw;
-		for (var y = 1; y <= MAXH; y++) {
-			for (var x = 0; x < w; x++) {
-				if (map[i] != v) return y;
-				i += 1;
-			}
-			i += mw - w;
-		}
-		return MAXH;
-	}
-	
-	// Scan fore for a volume of v, return depth
-	function fore(v, pos, w, h) {
-		var i = pos + mw * mh;
-		for (var d = 1; d <= MAXD; d++) {
-			for (var y = 0; y < h; y++) {
-				for (var x = 0; x < w; x++) {
-					if (map[i] != v) return d;
-					i += 1;
-				}
-				i += mw - w;
-			}
-			i += mw * mh - mw * h;
-		}
-		return MAXD;
-	}
-	
-	// Fill w,h,d volume at pos with v
-	function fill(v, pos, w, h, d) {
-		for (var z = 0; z < d; z++) {
-			for (var y = 0; y < h; y++) {
-				for (var x = 0; x < w; x++) {
-					map[pos + x + mw * (y + mh * z)] = v;
-				}
-			}
-		}
-	}
-	
-	function build(v, x, y, z, w, h, d) {
-		var pos8 = (x + mw * (y + mh * z)) << 2;
-		// rope.push(`build(${v}, ${x},${y},${z}, ${w},${h},${d})\n`);
-		var vx = "0x" + v.toString(16).padStart(8, "0");
-		rope.push(`build(${vx}, ${map8[pos8+0]},${map8[pos8+1]},${map8[pos8+2]},${map8[pos8+3]}, ${x},${y},${z}, ${w},${h},${d})\n`);
-		count++;
-	}
-	
-	// Returns a hint as to where toward x to probe next
-	function probe(pos, x, y, z) {
-		var v = map[pos];
-		if (v == 0) return 1;
-		var w = right(v, pos);
-		var h = down(v, pos, w);
-		var d = fore(v, pos, w, h);
-		build(v, x, y, z, w, h, d);
-		fill(0, pos, w, h, d);
-		return w;
-	}
-	
-	if (options.mesh) {
-		for (var z = 0; z < md; z++) {
-			for (var y = 0; y < mh-1; y++) {
-				var x = 0;
-				while (x < mw-1) {
-					var pos = x + mw * (y + mh * z);
-					x += probe(pos, x, y, z);
-				}
-			}
-		}
-	} else {
-		for (var z = 0; z < md; z++) {
-			for (var y = 0; y < mh-1; y++) {
-				for (var x = 0; x < mw-1; x++) {
-					var pos = x + mw * (y + mh * z);
-					var v = map[pos];
-					if (v !== 0) {
-						build(v, x, y, z, 1, 1, 1);
-					}
-				}
+	for (var z = 0; z < md; z++) {
+		for (var y = 0; y < mh-1; y++) {
+			var x = 0;
+			while (x < mw-1) {
+				var pos = x + mw * (y + mh * z);
+				x += probe(pos, x, y, z);
 			}
 		}
 	}

@@ -329,14 +329,14 @@ function down(pos, max, v, w) {
 function downCareful(pos, max, v, w) {
 	var i = pos + mw;
 	for (var y = 1; y <= max; y++) {
+		if (map32[i-1] == v && map32[i+w] == v) {
+			return y;
+		}
 		for (var x = 0; x < w; x++) {
 			if (map32[i] != v) return y;
 			i += 1;
 		}
 		i += mw - w;
-		if (map32[i-1-mw] == v && map32[i+w-mw] == v) {
-			return y;
-		}
 	}
 	return max;
 }

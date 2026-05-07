@@ -74,7 +74,7 @@ local cache = {}
 local function build(c32, r8,g8,b8,a8, x,y,z, w,h,d)
 	local c = cache[c32]
 	if not c then
-		c = Color3.fromRGB(r8,g8,b8)
+		c = Color3.new(r8/255, g8/255, b8/255)
 		cache[c32] = c
 	end
 	local tr = (255 - a8) / 255

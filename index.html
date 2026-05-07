@@ -9,53 +9,58 @@ Add auto redo on change/add checkbox so it won't lag you every time you make a m
 Don't redo on images blur unless something actually changed
 
 -->
-<html>
-	<head>
-		<meta charset="utf-8">
-		<title>Image to Roblox</title>
-		<style media="screen">
-			body {
-				max-width: 800px;
-				margin: auto;
-				padding: 8px;
-			}
-			#input {
-				min-height: 50px;
-				border: 1px solid lightgrey;
-			}
-			#input:focus {
-				border: 1px dotted black;
-			}
-		</style>
- <link rel="icon" id="favicon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAAOlJREFUOMutUrENgzAQ/I9oaJkCiYoBqFKzQGZgBgrPkBlYIDVVBqCy9FO4dekU0ZHX84ImVEZ/d74/H9E/vhT6kkJfrjCXQu9HW7QgSJqcQl+AO3WTUioAQ8Aj3lyVaaVxHommlbq23oWHRdhCGcpdW1OUvBNoWome98O5mTc+OBgWYQyi5O9EkeHGy4HPwrRuIK5XYY/sruHYd0Pc1Y31KNntS2WLojN4hZ8DCNunvIEcJVMzbzwswjZI3K5zOS2THto2olj4r646v7uxGWEFXVUQdNqwHCW7ttm+e5RMwyKswbgVWWncB3EzxFgtIwHpAAAAAElFTkSuQmCC" type="image/png">
-	</head>
-	<body>
-		<h1>Image to Roblox</h1>
-		<fieldset>
-			<legend>Output</legend>
-			<textarea style="height:40vh;width:100%" id="output"></textarea>
-			<p id="info">The script failed to run, check console</p>
-		</fieldset>
-		<fieldset>
-			<legend>Input</legend>
-			<p>Paste an image below or use the Browse button. Some browsers let you drag and drop onto the Browse button.</p>
-			<div id="input" contenteditable=""></div>
-			<form id="options">
-				<div><input type="file" multiple="multiple"></div>
-				<div><label><input type="number" value="1" min="0" max="2048">X scale</label></div>
-				<div><label><input type="number" value="1" min="0" max="2048">Y scale</label></div>
-				<div><label><input type="number" value="1" min="0" max="2048">Z scale</label></div>
-				<div><label><input type="checkbox" checked="">Greedy meshing (xyz search order)</label></div>
-				<div><label><input type="checkbox" checked="">#000000 is matte</label></div>
-			</form>
-			<p>
-			<div>The scale parameters above also limit the maximum size of a greedy mesh block to no more than 2048 studs.</div>
-			<div>Transparency is supported.</div>
-			<div>3D is supported, add more than one image.</div>
-			<div>Do not paste huge images, processing is still quick but writing the output isn't.</div>
-			</p>
-		</fieldset>
-		<script id="preamble" type="text/plain">
+<html><head>
+
+<meta charset="utf-8">
+<title>Image to Roblox</title>
+<link rel="icon" id="favicon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAAOlJREFUOMutUrENgzAQ/I9oaJkCiYoBqFKzQGZgBgrPkBlYIDVVBqCy9FO4dekU0ZHX84ImVEZ/d74/H9E/vhT6kkJfrjCXQu9HW7QgSJqcQl+AO3WTUioAQ8Aj3lyVaaVxHommlbq23oWHRdhCGcpdW1OUvBNoWome98O5mTc+OBgWYQyi5O9EkeHGy4HPwrRuIK5XYY/sruHYd0Pc1Y31KNntS2WLojN4hZ8DCNunvIEcJVMzbzwswjZI3K5zOS2THto2olj4r646v7uxGWEFXVUQdNqwHCW7ttm+e5RMwyKswbgVWWncB3EzxFgtIwHpAAAAAElFTkSuQmCC" type="image/png">
+
+<style media="screen">
+body {
+	max-width: 800px;
+	margin: auto;
+	padding: 8px;
+}
+#input {
+	min-height: 50px;
+	border: 1px solid lightgrey;
+}
+#input:focus {
+	border: 1px dotted black;
+}
+</style>
+
+</head><body>
+
+<h1>Image to Roblox</h1>
+
+<fieldset>
+	<legend>Output</legend>
+	<textarea style="height:40vh;width:100%" id="output"></textarea>
+	<p id="info">The script failed to run, check console</p>
+</fieldset>
+
+<fieldset>
+	<legend>Input</legend>
+	<p>Paste an image below or use the Browse button. Some browsers let you drag and drop onto the Browse button.</p>
+	<div id="input" contenteditable=""></div>
+	<form id="options">
+		<div><input type="file" multiple="multiple"></div>
+		<div><label><input type="number" value="1" min="0" max="2048">X scale</label></div>
+		<div><label><input type="number" value="1" min="0" max="2048">Y scale</label></div>
+		<div><label><input type="number" value="1" min="0" max="2048">Z scale</label></div>
+		<div><label><input type="checkbox" checked="">Greedy meshing (xyz search order)</label></div>
+		<div><label><input type="checkbox" checked="">#000000 is matte</label></div>
+	</form>
+	<p>
+	<div>The scale parameters above also limit the maximum size of a greedy mesh block to no more than 2048 studs.</div>
+	<div>Transparency is supported.</div>
+	<div>3D is supported, add more than one image.</div>
+	<div>Do not paste huge images, processing is still quick but writing the output isn't.</div>
+	</p>
+</fieldset>
+
+<script id="preamble" type="text/plain">
 local flip = Vector3.new(1, -1, 1)
 local adjust = 0.5 * scale * flip * Vector3.new(bounds.X, 2*bounds.Y, bounds.Z)
 local origin = Vector3.new(0, 0, 0) - adjust
@@ -85,249 +90,249 @@ end
 model.Parent = workspace
 
 </script>
-		<script type="text/javascript">
-			var output = document.getElementById("output");
-			var screech = document.getElementById("info");
-			
-			var eoptions = document.getElementById("options");
-			var browse = eoptions[0];
-			var options = {};
-			
-			// All inputs aside from the file input (which has its own routine)
-			// trigger redraws
-			Array.from(eoptions.elements).slice(1).forEach(x => x.addEventListener("change", handleInput));
-			
-			var input = document.getElementById("input");
-			var sample = document.createElement("img");
-			sample.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAAOlJREFUOMutUrENgzAQ/I9oaJkCiYoBqFKzQGZgBgrPkBlYIDVVBqCy9FO4dekU0ZHX84ImVEZ/d74/H9E/vhT6kkJfrjCXQu9HW7QgSJqcQl+AO3WTUioAQ8Aj3lyVaaVxHommlbq23oWHRdhCGcpdW1OUvBNoWome98O5mTc+OBgWYQyi5O9EkeHGy4HPwrRuIK5XYY/sruHYd0Pc1Y31KNntS2WLojN4hZ8DCNunvIEcJVMzbzwswjZI3K5zOS2THto2olj4r646v7uxGWEFXVUQdNqwHCW7ttm+e5RMwyKswbgVWWncB3EzxFgtIwHpAAAAAElFTkSuQmCC";
-			
-			function handleInput() {
-				try {
-					handleInputImpl();
-				} catch(e) {
-					console.error(e);
-					screech.innerText = `Error: ${e.message}`;
-				}
-			}
-			
-			function handleInputImpl() {
-				[, options.sw, options.sh, options.sd] 
-					= Array.from(eoptions.elements).map(x => x.value);
-				[options.mesh, options.mask]
-					= Array.from(eoptions.elements).slice(4).map(x => x.checked);
-				
-				var images = Array.from(input.children).filter(x => x.nodeName === "IMG");
-				if (images.length) {
-					screech.innerText = drawProjectile(images);
-				} else {
-					// Draw the demo
-					screech.innerText = drawProjectile([sample]) + ", using demo image";
-				}
-			}
-			input.addEventListener("drop", () => {
-				setTimeout(() => {
-					handleInput();
-				}, 100);
-			});
-			input.addEventListener("blur", handleInput);
 
-			browse.addEventListener("change", () => {
-				var files = browse.files;
-				var m = 0;
-				var n = 1
-				for (var i = 0; i < files.length; i++) {
-					var file = files[i];
-					if (file.type.match("image.*")) {
-						n++;
-						var fr = new FileReader;
-						fr.onload = function() {
-							var image = document.createElement("img");
-							image.src = this.result;
-							image.onload = function() {
-								input.appendChild(image);
-								m++;
-								if (m == n) handleInput();
-							}
-						};
-						fr.readAsDataURL(file);
-					}
+<script type="text/javascript">
+var output = document.getElementById("output");
+var screech = document.getElementById("info");
+
+var eoptions = document.getElementById("options");
+var browse = eoptions[0];
+var options = {};
+
+// All inputs aside from the file input (which has its own routine)
+// trigger redraws
+Array.from(eoptions.elements).slice(1).forEach(x => x.addEventListener("change", handleInput));
+
+var input = document.getElementById("input");
+var sample = document.createElement("img");
+sample.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAAOlJREFUOMutUrENgzAQ/I9oaJkCiYoBqFKzQGZgBgrPkBlYIDVVBqCy9FO4dekU0ZHX84ImVEZ/d74/H9E/vhT6kkJfrjCXQu9HW7QgSJqcQl+AO3WTUioAQ8Aj3lyVaaVxHommlbq23oWHRdhCGcpdW1OUvBNoWome98O5mTc+OBgWYQyi5O9EkeHGy4HPwrRuIK5XYY/sruHYd0Pc1Y31KNntS2WLojN4hZ8DCNunvIEcJVMzbzwswjZI3K5zOS2THto2olj4r646v7uxGWEFXVUQdNqwHCW7ttm+e5RMwyKswbgVWWncB3EzxFgtIwHpAAAAAElFTkSuQmCC";
+
+function handleInput() {
+	try {
+		handleInputImpl();
+	} catch(e) {
+		console.error(e);
+		screech.innerText = `Error: ${e.message}`;
+	}
+}
+
+function handleInputImpl() {
+	[, options.sw, options.sh, options.sd] 
+		= Array.from(eoptions.elements).map(x => x.value);
+	[options.mesh, options.mask]
+		= Array.from(eoptions.elements).slice(4).map(x => x.checked);
+	
+	var images = Array.from(input.children).filter(x => x.nodeName === "IMG");
+	if (images.length) {
+		screech.innerText = drawProjectile(images);
+	} else {
+		// Draw the demo
+		screech.innerText = drawProjectile([sample]) + ", using demo image";
+	}
+}
+input.addEventListener("drop", () => {
+	setTimeout(() => {
+		handleInput();
+	}, 100);
+});
+input.addEventListener("blur", handleInput);
+
+browse.addEventListener("change", () => {
+	var files = browse.files;
+	var m = 0;
+	var n = 1
+	for (var i = 0; i < files.length; i++) {
+		var file = files[i];
+		if (file.type.match("image.*")) {
+			n++;
+			var fr = new FileReader;
+			fr.onload = function() {
+				var image = document.createElement("img");
+				image.src = this.result;
+				image.onload = function() {
+					input.appendChild(image);
+					m++;
+					if (m == n) handleInput();
 				}
-				n--;
-				if (m == n) handleInput();
-			});
-			
-			var ehcanvas = document.createElement("canvas");
-			var hcanvas = ehcanvas.getContext("2d");
-			
-			var preamble = document.getElementById("preamble").innerText;
-			
-			function drawProjectile(sources) {
-				
-				var t0 = performance.now();
-				
-				// Size of image, padded with transparent black to the bottom and right
-				var mw = Math.max.apply(null, sources.map(x => x.naturalWidth)) + 1;
-				var mh = Math.max.apply(null, sources.map(x => x.naturalHeight)) + 1;
-				var md = sources.length;
-				
-				// Extract bitmap data from img element. Draw each image to
-				// a film strip of sorts, later interpreted in 3D. Leave one padding layer.
-				ehcanvas.width = mw;
-				ehcanvas.height = mh * (md + 1);
-				sources.forEach((source, i) => hcanvas.drawImage(source, 0, i * mh));
-				
-				var map8 = hcanvas.getImageData(0, 0, ehcanvas.width, ehcanvas.height).data;
-				// UInt32Array view of the image for one element per pixel
-				var map = new Uint32Array(map8.buffer);
-				
-				// ??? Somehow not necessary now that I have a default value="1" set
-				function stir(x) {
-					if (Number.isNaN(Number(x))) return 1;
-					return Math.max(0, Number(x));
-				}
-				
-				var sw = stir(options.sw);
-				var sh = stir(options.sh);
-				var sd = stir(options.sd);
-				var MAX = 2048;
-				var MAXW = Math.max(1, Math.floor(MAX / sw));
-				var MAXH = Math.max(1, Math.floor(MAX / sh));
-				var MAXD = Math.max(1, Math.floor(MAX / sd));
-				
-				var count = 0;
-				
-				// Output string (it's actually safe to just += string in
-				// javascript, but I want anyone porting this to Lua to
-				// beware never to do that)
-				var rope = [
-					`local bounds = Vector3.new(${mw-1}, ${mh-1}, ${md})\n`,
-					`local scale = Vector3.new(${sw}, ${sh}, ${sd})\n`,
-					preamble,
-				];
-				
-				// Solid black to fully transparent, any other fully transparent
-				// to transparent black/sentinel value
-				if (options.mask) {
-					for (var i = 0; i < map8.length; i+=4) {
-						if (map8[i] == 0 && map8[i+1] == 0 && map8[i+2] == 0 && map8[i+3] == 255) {
-							map[i>>2] = 0;
-						} else if (map8[i+3] == 0) {
-							map[i>>2] = 0;
-						}
-					}
-				} else {
-					for (var i = 0; i < map8.length; i+=4) {
-						// For those confused: check alpha channel in u8a,
-						// clear entire pixel in u32a
-						if (map8[i+3] == 0) {
-							map[i>>2] = 0;
-						}
-					}
-				}
-				
-				// Scan right for a line of v, return width
-				function right(v, pos) {
-					var i = pos + 1;
-					for (var x = 1; x <= MAXW; x++) {
-						if (map[i] != v) return x;
-						i += 1;
-					}
-					return MAXW;
-				}
-				
-				// Scan down for an area of v, return height
-				function down(v, pos, w) {
-					var i = pos + mw;
-					for (var y = 1; y <= MAXH; y++) {
-						for (var x = 0; x < w; x++) {
-							if (map[i] != v) return y;
-							i += 1;
-						}
-						i += mw - w;
-					}
-					return MAXH;
-				}
-				
-				// Scan fore for a volume of v, return depth
-				function fore(v, pos, w, h) {
-					var i = pos + mw * mh;
-					for (var d = 1; d <= MAXD; d++) {
-						for (var y = 0; y < h; y++) {
-							for (var x = 0; x < w; x++) {
-								if (map[i] != v) return d;
-								i += 1;
-							}
-							i += mw - w;
-						}
-						i += mw * mh - mw * h;
-					}
-					return MAXD;
-				}
-				
-				// Fill w,h,d volume at pos with v
-				function fill(v, pos, w, h, d) {
-					for (var z = 0; z < d; z++) {
-						for (var y = 0; y < h; y++) {
-							for (var x = 0; x < w; x++) {
-								map[pos + x + mw * (y + mh * z)] = v;
-							}
-						}
-					}
-				}
-				
-				function build(v, x, y, z, w, h, d) {
-					var pos8 = (x + mw * (y + mh * z)) << 2;
-					// rope.push(`build(${v}, ${x},${y},${z}, ${w},${h},${d})\n`);
-					var vx = "0x" + v.toString(16).padStart(8, "0");
-					rope.push(`build(${vx}, ${map8[pos8+0]},${map8[pos8+1]},${map8[pos8+2]},${map8[pos8+3]}, ${x},${y},${z}, ${w},${h},${d})\n`);
-					count++;
-				}
-				
-				// Returns a hint as to where toward x to probe next
-				function probe(pos, x, y, z) {
-					var v = map[pos];
-					if (v == 0) return 1;
-					var w = right(v, pos);
-					var h = down(v, pos, w);
-					var d = fore(v, pos, w, h);
-					build(v, x, y, z, w, h, d);
-					fill(0, pos, w, h, d);
-					return w;
-				}
-				
-				if (options.mesh) {
-					for (var z = 0; z < md; z++) {
-						for (var y = 0; y < mh-1; y++) {
-							var x = 0;
-							while (x < mw-1) {
-								var pos = x + mw * (y + mh * z);
-								x += probe(pos, x, y, z);
-							}
-						}
-					}
-				} else {
-					for (var z = 0; z < md; z++) {
-						for (var y = 0; y < mh-1; y++) {
-							for (var x = 0; x < mw-1; x++) {
-								var pos = x + mw * (y + mh * z);
-								var v = map[pos];
-								if (v !== 0) {
-									build(v, x, y, z, 1, 1, 1);
-								}
-							}
-						}
-					}
-				}
-				
-				var t1 = performance.now();
-				
-				output.value = rope.join("");
-				
-				return `Completed in ${t1 - t0}ms process + ${performance.now() - t1}ms output, ${count} parts`;
+			};
+			fr.readAsDataURL(file);
+		}
+	}
+	n--;
+	if (m == n) handleInput();
+});
+
+var ehcanvas = document.createElement("canvas");
+var hcanvas = ehcanvas.getContext("2d");
+
+var preamble = document.getElementById("preamble").innerText;
+
+function drawProjectile(sources) {
+	
+	var t0 = performance.now();
+	
+	// Size of image, padded with transparent black to the bottom and right
+	var mw = Math.max.apply(null, sources.map(x => x.naturalWidth)) + 1;
+	var mh = Math.max.apply(null, sources.map(x => x.naturalHeight)) + 1;
+	var md = sources.length;
+	
+	// Extract bitmap data from img element. Draw each image to
+	// a film strip of sorts, later interpreted in 3D. Leave one padding layer.
+	ehcanvas.width = mw;
+	ehcanvas.height = mh * (md + 1);
+	sources.forEach((source, i) => hcanvas.drawImage(source, 0, i * mh));
+	
+	var map8 = hcanvas.getImageData(0, 0, ehcanvas.width, ehcanvas.height).data;
+	// UInt32Array view of the image for one element per pixel
+	var map = new Uint32Array(map8.buffer);
+	
+	// ??? Somehow not necessary now that I have a default value="1" set
+	function stir(x) {
+		if (Number.isNaN(Number(x))) return 1;
+		return Math.max(0, Number(x));
+	}
+	
+	var sw = stir(options.sw);
+	var sh = stir(options.sh);
+	var sd = stir(options.sd);
+	var MAX = 2048;
+	var MAXW = Math.max(1, Math.floor(MAX / sw));
+	var MAXH = Math.max(1, Math.floor(MAX / sh));
+	var MAXD = Math.max(1, Math.floor(MAX / sd));
+	
+	var count = 0;
+	
+	// Output string (it's actually safe to just += string in
+	// javascript, but I want anyone porting this to Lua to
+	// beware never to do that)
+	var rope = [
+		`local bounds = Vector3.new(${mw-1}, ${mh-1}, ${md})\n`,
+		`local scale = Vector3.new(${sw}, ${sh}, ${sd})\n`,
+		preamble,
+	];
+	
+	// Solid black to fully transparent, any other fully transparent
+	// to transparent black/sentinel value
+	if (options.mask) {
+		for (var i = 0; i < map8.length; i+=4) {
+			if (map8[i] == 0 && map8[i+1] == 0 && map8[i+2] == 0 && map8[i+3] == 255) {
+				map[i>>2] = 0;
+			} else if (map8[i+3] == 0) {
+				map[i>>2] = 0;
 			}
-			
-			
-			window.onload = handleInput;
-		</script>
-	</body>
-</html>
+		}
+	} else {
+		for (var i = 0; i < map8.length; i+=4) {
+			// For those confused: check alpha channel in u8a,
+			// clear entire pixel in u32a
+			if (map8[i+3] == 0) {
+				map[i>>2] = 0;
+			}
+		}
+	}
+	
+	// Scan right for a line of v, return width
+	function right(v, pos) {
+		var i = pos + 1;
+		for (var x = 1; x <= MAXW; x++) {
+			if (map[i] != v) return x;
+			i += 1;
+		}
+		return MAXW;
+	}
+	
+	// Scan down for an area of v, return height
+	function down(v, pos, w) {
+		var i = pos + mw;
+		for (var y = 1; y <= MAXH; y++) {
+			for (var x = 0; x < w; x++) {
+				if (map[i] != v) return y;
+				i += 1;
+			}
+			i += mw - w;
+		}
+		return MAXH;
+	}
+	
+	// Scan fore for a volume of v, return depth
+	function fore(v, pos, w, h) {
+		var i = pos + mw * mh;
+		for (var d = 1; d <= MAXD; d++) {
+			for (var y = 0; y < h; y++) {
+				for (var x = 0; x < w; x++) {
+					if (map[i] != v) return d;
+					i += 1;
+				}
+				i += mw - w;
+			}
+			i += mw * mh - mw * h;
+		}
+		return MAXD;
+	}
+	
+	// Fill w,h,d volume at pos with v
+	function fill(v, pos, w, h, d) {
+		for (var z = 0; z < d; z++) {
+			for (var y = 0; y < h; y++) {
+				for (var x = 0; x < w; x++) {
+					map[pos + x + mw * (y + mh * z)] = v;
+				}
+			}
+		}
+	}
+	
+	function build(v, x, y, z, w, h, d) {
+		var pos8 = (x + mw * (y + mh * z)) << 2;
+		// rope.push(`build(${v}, ${x},${y},${z}, ${w},${h},${d})\n`);
+		var vx = "0x" + v.toString(16).padStart(8, "0");
+		rope.push(`build(${vx}, ${map8[pos8+0]},${map8[pos8+1]},${map8[pos8+2]},${map8[pos8+3]}, ${x},${y},${z}, ${w},${h},${d})\n`);
+		count++;
+	}
+	
+	// Returns a hint as to where toward x to probe next
+	function probe(pos, x, y, z) {
+		var v = map[pos];
+		if (v == 0) return 1;
+		var w = right(v, pos);
+		var h = down(v, pos, w);
+		var d = fore(v, pos, w, h);
+		build(v, x, y, z, w, h, d);
+		fill(0, pos, w, h, d);
+		return w;
+	}
+	
+	if (options.mesh) {
+		for (var z = 0; z < md; z++) {
+			for (var y = 0; y < mh-1; y++) {
+				var x = 0;
+				while (x < mw-1) {
+					var pos = x + mw * (y + mh * z);
+					x += probe(pos, x, y, z);
+				}
+			}
+		}
+	} else {
+		for (var z = 0; z < md; z++) {
+			for (var y = 0; y < mh-1; y++) {
+				for (var x = 0; x < mw-1; x++) {
+					var pos = x + mw * (y + mh * z);
+					var v = map[pos];
+					if (v !== 0) {
+						build(v, x, y, z, 1, 1, 1);
+					}
+				}
+			}
+		}
+	}
+	
+	var t1 = performance.now();
+	
+	output.value = rope.join("");
+	
+	return `Completed in ${t1 - t0}ms process + ${performance.now() - t1}ms output, ${count} parts`;
+}
+
+window.onload = handleInput;
+</script>
+
+</body></html>

@@ -37,31 +37,35 @@ body {
 <fieldset>
 	<legend>Output</legend>
 	<textarea style="height:40vh;width:100%" id="output"></textarea>
-	<p id="info">The script failed to run, check console</p>
+	<div id="info">The script failed to run, check console</div>
 </fieldset>
 
 <fieldset>
 	<legend>Input</legend>
-	<p>Paste an image below or use the Browse button. Some browsers let you drag and drop onto the Browse button.</p>
+	<div>Paste or drag and drop an image into the textarea or the Browse button.</div>
 	<div id="input" contenteditable=""></div>
 	<form id="options">
 		<div><input type="file" multiple="multiple"></div>
 		<div><label><input id="sw" type="number" value="1" min="0" max="2048">X scale</label></div>
 		<div><label><input id="sh" type="number" value="1" min="0" max="2048">Y scale</label></div>
 		<div><label><input id="sd" type="number" value="1" min="0" max="2048">Z scale</label></div>
-		<div><label><input id="mesh1" value="1" type="checkbox" checked="">XYZ greedy meshing, classic</label></div>
-		<div><label><input id="mesh2" value="2" type="checkbox" checked="">XYZ greedy meshing, Y axis split-avoidant</label></div>
+		<div><label><input id="z" type="checkbox">3D</label></div>
+		<div><label><input id="mesh1" type="checkbox" checked="">XYZ greedy meshing, classic</label></div>
+		<div><label><input id="mesh2" type="checkbox" checked="">XYZ greedy meshing, Y axis split-avoidant</label></div>
 		<div><label><input id="matte" type="checkbox" checked="">Matte color: </label><input id="mattecolor" value="#000000" type="color"></div>
-		<div><label><input id="le" type="checkbox" checked="">Little-endian</label></div>
+		<div><label><input id="le" type="checkbox" checked="">Little-endian system</label></div>
+		<div><label><input id="norm" type="checkbox" checked="">Normalize fully transparent pixels (apparently browsers already do this for you)</label></div>
 	</form>
-	<p>
-	<div>The scale parameters above also limit the maximum size of a greedy mesh block to no more than 2048 studs.</div>
-	<div>Transparency is supported.</div>
-	<div>3D is supported, add more than one image.</div>
-	<div>Do not paste huge images, processing is still quick but writing the output isn't.</div>
-	<div>Colors can potentially get gamma-corrected.</div>
-	</p>
 </fieldset>
+
+<p>
+<div>The scale parameters above also limit the maximum size of a greedy mesh block to no more than 2048 studs.</div>
+<div>Transparency is supported.</div>
+<div>3D is supported, add more than one image.</div>
+<div>Do not paste huge images, processing is still quick but writing the output isn't.</div>
+<div>Colors can potentially get gamma-corrected.</div>
+<div>Any image your browser can decode works, I've even converted an .ico before.</div>
+</p>
 
 <script id="preamble" type="text/plain">
 local flip = Vector3.new(1, -1, 1)
@@ -121,10 +125,10 @@ function handleInput() {
 
 function handleInputImpl() {
 	var o = eoptions.elements;
-	[options.sw, options.sh, options.sd] 
+	[options.sw, options.sh, options.sd]
 		= [o.sw, o.sh, o.sd].map(x => x.value);
-	[options.matte, options.le]
-		= [o.matte, o.le].map(x => x.checked);
+	[options.matte, options.le, options.norm, options.z]
+		= [o.matte, o.le, o.norm, o.z].map(x => x.checked);
 	var hrgb = o.mattecolor.value;
 	var agbr = o.le
 		? "0xff" + hrgb.slice(5, 7) + hrgb.slice(3, 5) + hrgb.slice(1, 3)
@@ -138,11 +142,13 @@ function handleInputImpl() {
 	if (!images.length) {
 		images = [sample];
 		comment.push("Using demo image");
+	} else if (!options.z) {
+		images = images.slice(-1);
 	}
 	
 	var probes = [
 		{el: o.mesh1, probe: probeGreedy, name: "Classic"},
-		{el: o.mesh2, probe: probeYCareful, name: "Split-avoidant"},
+		{el: o.mesh2, probe: probeYCareful, name: "Split-avoidant", whoopspadx: true},
 	].filter(x => x.el.checked);
 	
 	if (!probes.length) {
@@ -157,7 +163,7 @@ function handleInputImpl() {
 		count = 0;
 		
 		var t0 = performance.now();
-		drawProjectile(images, method.probe);
+		drawProjectile(images, method.probe, method.whoopspadx);
 		var t1 = performance.now();
 		
 		comment.push(`${method.name}: ${t1-t0}ms, ${count} parts, ${Math.round(count / countSolid * 100)}%`);
@@ -232,26 +238,47 @@ var rope = [];
 
 // -----------------------------------------------------------------------------
 
-// Solid black to fully transparent, any other fully transparent
-// to transparent black/sentinel value
-// For those confused: check alpha channel in u8a,
-// clear entire pixel in u32a
-function normalizeAlpha(matte, color) {
+// Convert matte color to 0x0 if requested.
+// Convert fully transparent but not necessarily 0x0 pixels to 0x0 if requested.
+// Count the remaining pixels.
+function normalizeAlpha(norm, matte, color) {
 	var n = 0;
 	if (matte) {
-		for (var i = 0; i < map8.length; i+=4) {
-			if (map8[i+3] == 0 || map32[i>>2] == color) {
-				map32[i>>2] = 0;
-			} else {
-				n++;
+		if (norm) {
+			for (var i = 0; i < map8.length; i+=4) {
+				if (map32[i>>2] == color || map8[i+3] == 0) {
+					map32[i>>2] = 0;
+				} else {
+					n++;
+				}
+			}
+		} else {
+			for (var i = 0; i < map8.length; i+=4) {
+				if (map32[i>>2] == color) {
+					map32[i>>2] = 0;
+				} else if (map32[i>>2] == 0) {
+					// Don't count
+				} else {
+					n++;
+				}
 			}
 		}
 	} else {
-		for (var i = 0; i < map8.length; i+=4) {
-			if (map8[i+3] == 0) {
-				map32[i>>2] = 0;
-			} else {
-				n++;
+		if (norm) {
+			for (var i = 0; i < map8.length; i+=4) {
+				if (map8[i+3] == 0) {
+					map32[i>>2] = 0;
+				} else {
+					n++;
+				}
+			}
+		} else {
+			for (var i = 0; i < map8.length; i+=4) {
+				if (map32[i>>2] == 0) {
+					// Don't count
+				} else {
+					n++;
+				}
 			}
 		}
 	}
@@ -361,7 +388,7 @@ function probeYCareful(pos, x, y, z) {
 	return w;
 }
 
-// Just output one volume per pixel/voxel at pos
+// Just output one volume per cell at pos
 function probeOne(pos, x, y, z) {
 	var v = map32[pos];
 	if (v !== 0) {
@@ -381,9 +408,10 @@ function stir(x) {
 // TODO don't repeat most of this work? Well I can't keep an untouched
 // copy on hand because that'll make memory usage triple, not double the
 // source images
-function drawProjectile(sources, probe) {
+function drawProjectile(sources, probe, whoopspadx) {
 	// Size of image with padding
-	mw = Math.max.apply(null, sources.map(x => x.naturalWidth));
+	var px = whoopspadx ? 1 : 0;
+	mw = Math.max.apply(null, sources.map(x => x.naturalWidth)) + px;
 	mh = Math.max.apply(null, sources.map(x => x.naturalHeight));
 	md = sources.length;
 	
@@ -402,24 +430,24 @@ function drawProjectile(sources, probe) {
 	ehcanvas.height = mh * md;
 	sources.forEach((source, i) => hcanvas.drawImage(source, 0, i * mh));
 	
-	// UInt8Array and UInt32Array views for 4bpp and 1el/pixel respectively
+	// UInt8Array and UInt32Array views for 4bpp and 1el/cell respectively
 	map8 = hcanvas.getImageData(0, 0, ehcanvas.width, ehcanvas.height).data;
 	map32 = new Uint32Array(map8.buffer);
 	
-	// Turn all fully transparent and masked pixels into #0000
-	countSolid = normalizeAlpha(options.matte, options.mattecolor);
+	// Turn all fully transparent and masked cells into #00000000
+	countSolid = normalizeAlpha(options.norm, options.matte, options.mattecolor);
 	
 	// Output string (it's actually safe to just += string in JS, but
 	// I want anyone porting this to Lua to beware never to do that)
 	rope.push(
-		`local bounds = Vector3.new(${mw}, ${mh}, ${md})\n`,
+		`local bounds = Vector3.new(${mw-px}, ${mh}, ${md})\n`,
 		`local scale = Vector3.new(${sw}, ${sh}, ${sd})\n`,
 		preamble);
 	
 	for (var z = 0; z < md; z++) {
 		for (var y = 0; y < mh; y++) {
 			var x = 0;
-			while (x < mw) {
+			while (x < mw-px) {
 				var pos = x + mw * (y + mh * z);
 				var xx = probe(pos, x, y, z);
 				x += Math.max(1, xx);

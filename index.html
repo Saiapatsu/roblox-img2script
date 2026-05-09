@@ -3,8 +3,16 @@
 
 Add preamble config field that gets scale x etc. interpolated into it
 Add auto redo on change/add checkbox so it won't lag you every time you make a minor change
+	Auto redo if volume in voxels or pixels is under N
 Add meshing mode that balances xyz until it hits something
+Add meshing mode that checks each row's length and picks the wh with the largest area, then continues where it left off with the remainder (right and bottom parts)
 Add voxel file format decoder
+Hollow (clear anything that's not adjacent to air before meshing, well or don't
+expand parts if doing so doesn't take it to more exposed areas)
+	Whether there's air out of bounds
+Tiling/wrapping mode: always pass width/height/depth of source to right/down/fore,
+wrap coords (or write to read buffer 8 or 4 times), only sweep the first octant
+XY only mode that only meshes each image individually and adjusts output z to index of image
 
 -->
 <html><head>

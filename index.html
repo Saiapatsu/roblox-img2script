@@ -13,6 +13,10 @@ expand parts if doing so doesn't take it to more exposed areas)
 Tiling/wrapping mode: always pass width/height/depth of source to right/down/fore,
 wrap coords (or write to read buffer 8 or 4 times), only sweep the first octant
 XY only mode that only meshes each image individually and adjusts output z to index of image
+Imitate retro game emulator pixel upscaling algorithms with wedges in a separate project, see nu-zsnes
+Pass stride for each axis to enable meshing in any axis order or even backward
+	Benchmark whether it's quicker to pass strides as arguments or as upvalues
+	Rename right() to mesh01, down to mesh12, fore to mesh23
 
 -->
 <html><head>

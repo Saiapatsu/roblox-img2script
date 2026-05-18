@@ -82,6 +82,7 @@ body {
 <div>Classic greedy meshing expands as much as it can toward X, then Y, then Z.
 Split-avoidant meshing does the same but stops when it's about to expand toward Y and
 there's a matching color to the left and right of the row it'd check, leaving it for later.</div>
+<div>If you're not satisfied with build(), look into the page source and patch it.</div>
 </p>
 
 <script type="text/javascript">
@@ -221,7 +222,7 @@ var hcanvas = ehcanvas.getContext("2d");
 var map8, map32;
 // Map size in each dimension with padding (i.e. data array size)
 var mw, mh, md;
-// Map padding
+// Map padding, subtract from m* for actual canvas size
 var pw, ph, pd;
 // Output part scale parameters
 var sw, sh, sd;
@@ -235,8 +236,9 @@ var countSolid;
 var rope = [];
 
 // -----------------------------------------------------------------------------
-// For custom use cases, modify these functions and paste them into the console
-// to patch code.
+// For custom use cases, copy these functions, modify and paste them into the
+// console to patch code. If you return to this tool a lot, consider making a
+// Greasemonkey script do it for you. No forward compatibility guarantees.
 // Everything is global just for this (which sadly leads to it also gening
 // the output text for everything... oh well)
 
@@ -254,11 +256,9 @@ function build(pos, v, x, y, z, w, h, d) {
 }
 
 function genOutput() {
-return `--!strict
+return `-- Position "bottom middle" of object at world origin
 local bounds = Vector3.new(${mw-pw}, ${mh-ph}, ${md-ph})
 local scale = Vector3.new(${sw}, ${sh}, ${sd})
-
--- Position "bottom middle" of object at origin (the center of the workspace)
 local flip = Vector3.new(1, -1, 1)
 local adjust = 0.5 * scale * flip * Vector3.new(bounds.X, 2*bounds.Y, bounds.Z)
 local origin = Vector3.new(0, 0, 0) - adjust

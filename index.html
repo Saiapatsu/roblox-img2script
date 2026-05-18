@@ -83,7 +83,7 @@ body {
 <div>Classic greedy meshing expands as much as it can toward X, then Y, then Z.
 Split-avoidant meshing does the same but stops when it's about to expand toward Y and
 there's a matching color to the left and right of the row it'd check, leaving it for later.</div>
-<div>If you're not satisfied with build(), look into the page source (usually Ctrl+U) and patch it in the console.</div>
+<div>If you're not satisfied with build(), look into the page source (usually Ctrl+U) and patch it in the console. Particularly useful if you want the whole color as a 32-bit integer, which I've just commented out.</div>
 </p>
 
 <script type="text/javascript">
@@ -258,12 +258,14 @@ function build(pos, v, x, y, z, w, h, d) {
 	count++;
 	// var pos8 = (x + mw * (y + mh * z)) << 2;
 	var pos8 = pos << 2;
-	var vx = "0x" + v.toString(16).padStart(8, "0");
+	// var vx = "0x" + v.toString(16).padStart(8, "0");
 	var r = map8[pos8+0];
 	var g = map8[pos8+1];
 	var b = map8[pos8+2];
 	var a = map8[pos8+3];
-	rope.push(`build(${vx}, ${r},${g},${b},${a}, ${x},${y},${z}, ${w},${h},${d})`);
+	// -- c32:number, raw 32-bit color value
+	// rope.push(`b(${vx}, ${r},${g},${b},${a}, ${x},${y},${z}, ${w},${h},${d})`);
+	rope.push(`b(${r},${g},${b},${a}, ${x},${y},${z}, ${w},${h},${d})`);
 }
 
 function genOutput() {
@@ -276,11 +278,10 @@ local origin = Vector3.new(0, 0, 0) - adjust
 
 local model = Instance.new("Model")
 
--- c32:number, raw 32-bit color value
--- rgba8: number 0-255, individiual color components for convenience
+-- rgba8: number 0-255, individual color components
 -- xyz: starting position (on the corner) of a volume
 -- whd: size of volume as in width, height, depth
-local function build(c32, r8,g8,b8,a8, x,y,z, w,h,d)
+local function b(r8,g8,b8,a8, x,y,z, w,h,d)
 	local c = Color3.new(r8/255, g8/255, b8/255)
 	local tr = (255 - a8) / 255
 	local size = Vector3.new(w, h, d) * scale

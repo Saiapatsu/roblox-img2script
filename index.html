@@ -264,18 +264,13 @@ local adjust = 0.5 * scale * flip * Vector3.new(bounds.X, 2*bounds.Y, bounds.Z)
 local origin = Vector3.new(0, 0, 0) - adjust
 
 local model = Instance.new("Model")
-local cache = {}
 
 -- c32:number, raw 32-bit color value
 -- rgba8: number 0-255, individiual color components for convenience
 -- xyz: starting position (on the corner) of a volume
 -- whd: size of volume as in width, height, depth
 local function build(c32, r8,g8,b8,a8, x,y,z, w,h,d)
-	local c = cache[c32]
-	if not c then
-		c = Color3.new(r8/255, g8/255, b8/255)
-		cache[c32] = c
-	end
+	local c = Color3.new(r8/255, g8/255, b8/255)
 	local tr = (255 - a8) / 255
 	local size = Vector3.new(w, h, d) * scale
 	local pos = origin + flip * (Vector3.new(x, y, z) * scale + 0.5 * size)

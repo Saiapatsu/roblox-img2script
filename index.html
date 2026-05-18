@@ -1,6 +1,13 @@
 <!DOCTYPE html>
+<html><head>
+<meta charset="utf-8">
+<title>Image to Roblox</title>
+<meta property="og:description" content="Load images, receive Lua code to build in Roblox"/><!-- Not limited to Roblox -->
+<meta property="og:image" content="https://saiapatsu.github.io/roblox-img2script/ogImage.png"/>
+<link rel="icon" id="favicon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAAOlJREFUOMutUrENgzAQ/I9oaJkCiYoBqFKzQGZgBgrPkBlYIDVVBqCy9FO4dekU0ZHX84ImVEZ/d74/H9E/vhT6kkJfrjCXQu9HW7QgSJqcQl+AO3WTUioAQ8Aj3lyVaaVxHommlbq23oWHRdhCGcpdW1OUvBNoWome98O5mTc+OBgWYQyi5O9EkeHGy4HPwrRuIK5XYY/sruHYd0Pc1Y31KNntS2WLojN4hZ8DCNunvIEcJVMzbzwswjZI3K5zOS2THto2olj4r646v7uxGWEFXVUQdNqwHCW7ttm+e5RMwyKswbgVWWncB3EzxFgtIwHpAAAAAElFTkSuQmCC" type="image/png">
 <!--
 
+TODO
 Add preamble config field that gets scale x etc. interpolated into it
 Add auto redo on change/add checkbox so it won't lag you every time you make a minor change
 	Auto redo if volume in voxels or pixels is under N
@@ -19,12 +26,6 @@ Pass stride for each axis to enable meshing in any axis order or even backward
 	Rename right() to mesh01, down to mesh12, fore to mesh23
 
 -->
-<html><head>
-
-<meta charset="utf-8">
-<title>Image to Roblox</title>
-<link rel="icon" id="favicon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAAABGdBTUEAALGPC/xhBQAAAOlJREFUOMutUrENgzAQ/I9oaJkCiYoBqFKzQGZgBgrPkBlYIDVVBqCy9FO4dekU0ZHX84ImVEZ/d74/H9E/vhT6kkJfrjCXQu9HW7QgSJqcQl+AO3WTUioAQ8Aj3lyVaaVxHommlbq23oWHRdhCGcpdW1OUvBNoWome98O5mTc+OBgWYQyi5O9EkeHGy4HPwrRuIK5XYY/sruHYd0Pc1Y31KNntS2WLojN4hZ8DCNunvIEcJVMzbzwswjZI3K5zOS2THto2olj4r646v7uxGWEFXVUQdNqwHCW7ttm+e5RMwyKswbgVWWncB3EzxFgtIwHpAAAAAElFTkSuQmCC" type="image/png">
-
 <style media="screen">
 body {
 	max-width: 800px;

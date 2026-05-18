@@ -115,24 +115,34 @@ function handleInput() {
 	}
 }
 
-function handleInputImpl() {
+function readOptions() {
+	var o = eoptions.elements;
 	
+	[options.sw, options.sh, options.sd]
+		= [o.sw, o.sh, o.sd].map(x => x.value);
+	
+	[options.matte, options.le, options.norm, options.z]
+		= [o.matte, o.le, o.norm, o.z].map(x => x.checked);
+	
+	[options.mesh1, options.mesh2]
+		= [o.mesh1, o.mesh2].map(x => x.checked);
+	
+	var hrgb = o.mattecolor.value;
+	
+	var agbr = o.le
+		? "0xff" + hrgb.slice(5, 7) + hrgb.slice(3, 5) + hrgb.slice(1, 3)
+		: hrgb.slice(1, 3) + hrgb.slice(3, 5) + hrgb.slice(5, 7) + "0xff";
+	options.mattecolor = Number(agbr);
+}
+
+function handleInputImpl() {
 	var children = Array.from(input.children);
 	if (children.length == lastInput.length && children.every((x, i) => lastInput[i] === x)) {
 		return;
 	}
 	lastInput = children;
 	
-	var o = eoptions.elements;
-	[options.sw, options.sh, options.sd]
-		= [o.sw, o.sh, o.sd].map(x => x.value);
-	[options.matte, options.le, options.norm, options.z]
-		= [o.matte, o.le, o.norm, o.z].map(x => x.checked);
-	var hrgb = o.mattecolor.value;
-	var agbr = o.le
-		? "0xff" + hrgb.slice(5, 7) + hrgb.slice(3, 5) + hrgb.slice(1, 3)
-		: hrgb.slice(1, 3) + hrgb.slice(3, 5) + hrgb.slice(5, 7) + "0xff";
-	options.mattecolor = Number(agbr);
+	readOptions();
 	
 	var comment = [];
 	
@@ -146,9 +156,9 @@ function handleInputImpl() {
 	}
 	
 	var probes = [
-		{el: o.mesh1, probe: probeGreedy, name: "Classic"},
-		{el: o.mesh2, probe: probeYCareful, name: "Split-avoidant", whoopspadx: true},
-	].filter(x => x.el.checked);
+		{ok: options.mesh1, probe: probeGreedy, name: "Classic"},
+		{ok: options.mesh2, probe: probeYCareful, name: "Split-avoidant", whoopspadx: true},
+	].filter(x => x.ok);
 	
 	if (!probes.length) {
 		probes = [{probe: probeOne, name: "Part per pixel"}];

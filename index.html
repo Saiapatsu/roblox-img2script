@@ -84,37 +84,6 @@ Split-avoidant meshing does the same but stops when it's about to expand toward 
 there's a matching color to the left and right of the row it'd check, leaving it for later.</div>
 </p>
 
-<script id="preamble" type="text/plain">
-local flip = Vector3.new(1, -1, 1)
-local adjust = 0.5 * scale * flip * Vector3.new(bounds.X, 2*bounds.Y, bounds.Z)
-local origin = Vector3.new(0, 0, 0) - adjust
-
-local model = Instance.new("Model")
-local cache = {}
-
-local function build(c32, r8,g8,b8,a8, x,y,z, w,h,d)
-	local c = cache[c32]
-	if not c then
-		c = Color3.new(r8/255, g8/255, b8/255)
-		cache[c32] = c
-	end
-	local tr = (255 - a8) / 255
-	local size = Vector3.new(w, h, d) * scale
-	local pos = origin + flip * (Vector3.new(x, y, z) * scale + 0.5 * size)
-	
-	local part = Instance.new("Part", model)
-	part.Color = c
-	part.Transparency = tr
-	part.Size = size
-	part.Position = pos
-	part.Anchored = true
-	part.Parent = model
-end
-
-model.Parent = workspace
-
-</script>
-
 <script type="text/javascript">
 var output = document.getElementById("output");
 var screech = document.getElementById("info");
@@ -198,13 +167,13 @@ function handleInputImpl() {
 		comment.push(`${method.name}: ${t1-t0}ms, ${count} parts, ${Math.round(count / countSolid * 100)}%`);
 		
 		if (count < bestN) {
-			bestV = {rope, name: method.name};
+			bestV = {str: genOutput(), name: method.name};
 			bestN = count;
 		}
 	});
 	
 	var t0 = performance.now();
-	output.value = bestV.rope.join("");
+	output.value = bestV.str;
 	var t1 = performance.now();
 	
 	comment.push(`Output: ${t1-t0}ms`);
@@ -246,14 +215,14 @@ browse.addEventListener("change", () => {
 var ehcanvas = document.createElement("canvas");
 var hcanvas = ehcanvas.getContext("2d");
 
-var preamble = document.getElementById("preamble").innerText;
-
 // -----------------------------------------------------------------------------
 
 // UInt*Array image data views
 var map8, map32;
-// Map size in each dimension plus one in padding
+// Map size in each dimension with padding (i.e. data array size)
 var mw, mh, md;
+// Map padding
+var pw, ph, pd;
 // Output part scale parameters
 var sw, sh, sd;
 // Max amount of cells in each dimension to probe to stay below 2048 stud limit
@@ -262,8 +231,69 @@ var MAXW, MAXH, MAXD;
 var count;
 // Amount of outputable pixels
 var countSolid;
-// Output string builder
+// Generated output volume string (Lua build() call) list
 var rope = [];
+
+// -----------------------------------------------------------------------------
+// For custom use cases, modify these functions and paste them into the console
+// to patch code.
+// Everything is global just for this (which sadly leads to it also gening
+// the output text for everything... oh well)
+
+// Record a volume
+function build(pos, v, x, y, z, w, h, d) {
+	count++;
+	// var pos8 = (x + mw * (y + mh * z)) << 2;
+	var pos8 = pos << 2;
+	var vx = "0x" + v.toString(16).padStart(8, "0");
+	var r = map8[pos8+0];
+	var g = map8[pos8+1];
+	var b = map8[pos8+2];
+	var a = map8[pos8+3];
+	rope.push(`build(${vx}, ${r},${g},${b},${a}, ${x},${y},${z}, ${w},${h},${d})`);
+}
+
+function genOutput() {
+return `--!strict
+local bounds = Vector3.new(${mw-pw}, ${mh-ph}, ${md-ph})
+local scale = Vector3.new(${sw}, ${sh}, ${sd})
+
+-- Position "bottom middle" of object at origin (the center of the workspace)
+local flip = Vector3.new(1, -1, 1)
+local adjust = 0.5 * scale * flip * Vector3.new(bounds.X, 2*bounds.Y, bounds.Z)
+local origin = Vector3.new(0, 0, 0) - adjust
+
+local model = Instance.new("Model")
+local cache = {}
+
+-- c32:number, raw 32-bit color value
+-- rgba8: number 0-255, individiual color components for convenience
+-- xyz: starting position (on the corner) of a volume
+-- whd: size of volume as in width, height, depth
+local function build(c32, r8,g8,b8,a8, x,y,z, w,h,d)
+	local c = cache[c32]
+	if not c then
+		c = Color3.new(r8/255, g8/255, b8/255)
+		cache[c32] = c
+	end
+	local tr = (255 - a8) / 255
+	local size = Vector3.new(w, h, d) * scale
+	local pos = origin + flip * (Vector3.new(x, y, z) * scale + 0.5 * size)
+	
+	local part = Instance.new("Part", model)
+	part.Color = c
+	part.Transparency = tr
+	part.Size = size
+	part.Position = pos
+	part.Anchored = true
+	part.Parent = model
+end
+
+${rope.join("\n")}
+
+model.Parent = workspace
+`
+}
 
 // -----------------------------------------------------------------------------
 
@@ -380,15 +410,6 @@ function fill(pos, v, w, h, d) {
 	}
 }
 
-// Output a volume
-function build(v, x, y, z, w, h, d) {
-	var pos8 = (x + mw * (y + mh * z)) << 2;
-	// rope.push(`build(${v}, ${x},${y},${z}, ${w},${h},${d})\n`);
-	var vx = "0x" + v.toString(16).padStart(8, "0");
-	rope.push(`build(${vx}, ${map8[pos8+0]},${map8[pos8+1]},${map8[pos8+2]},${map8[pos8+3]}, ${x},${y},${z}, ${w},${h},${d})\n`);
-	count++;
-}
-
 // Look for largest volume at pos with the greediest method
 // Returns width as a hint as to how many units in x to skip
 function probeGreedy(pos, x, y, z) {
@@ -397,7 +418,7 @@ function probeGreedy(pos, x, y, z) {
 	var w = right(pos, Math.min(MAXW, mw - x), v);
 	var h = down(pos, Math.min(MAXH, mh - y), v, w);
 	var d = fore(pos, Math.min(MAXD, md - z), v, w, h);
-	build(v, x, y, z, w, h, d);
+	build(pos, v, x, y, z, w, h, d);
 	fill(pos, 0, w, h, d);
 	return w;
 }
@@ -412,7 +433,7 @@ function probeYCareful(pos, x, y, z) {
 	var w = right(pos, Math.min(MAXW, mw - x), v);
 	var h = downCareful(pos, Math.min(MAXH, mh - y), v, w);
 	var d = fore(pos, Math.min(MAXD, md - z), v, w, h);
-	build(v, x, y, z, w, h, d);
+	build(pos, v, x, y, z, w, h, d);
 	fill(pos, 0, w, h, d);
 	return w;
 }
@@ -421,7 +442,7 @@ function probeYCareful(pos, x, y, z) {
 function probeOne(pos, x, y, z) {
 	var v = map32[pos];
 	if (v !== 0) {
-		build(v, x, y, z, 1, 1, 1);
+		build(pos, v, x, y, z, 1, 1, 1);
 	}
 	return 1;
 }
@@ -438,11 +459,15 @@ function stir(x) {
 // copy on hand because that'll make memory usage triple, not double the
 // source images
 function drawProjectile(sources, probe, whoopspadx) {
+	// Padding for certain meshers that require padding
+	pw = whoopspadx ? 1 : 0;
+	ph = 0;
+	pd = 0;
+	
 	// Size of image with padding
-	var px = whoopspadx ? 1 : 0;
-	mw = Math.max.apply(null, sources.map(x => x.naturalWidth)) + px;
-	mh = Math.max.apply(null, sources.map(x => x.naturalHeight));
-	md = sources.length;
+	mw = Math.max.apply(null, sources.map(x => x.naturalWidth)) + pw;
+	mh = Math.max.apply(null, sources.map(x => x.naturalHeight)) + ph;
+	md = sources.length + pd;
 	
 	sw = stir(options.sw);
 	sh = stir(options.sh);
@@ -466,17 +491,10 @@ function drawProjectile(sources, probe, whoopspadx) {
 	// Turn all fully transparent and masked cells into #00000000
 	countSolid = normalizeAlpha(options.norm, options.matte, options.mattecolor);
 	
-	// Output string (it's actually safe to just += string in JS, but
-	// I want anyone porting this to Lua to beware never to do that)
-	rope.push(
-		`local bounds = Vector3.new(${mw-px}, ${mh}, ${md})\n`,
-		`local scale = Vector3.new(${sw}, ${sh}, ${sd})\n`,
-		preamble);
-	
-	for (var z = 0; z < md; z++) {
-		for (var y = 0; y < mh; y++) {
+	for (var z = 0; z < md-pd; z++) {
+		for (var y = 0; y < mh-ph; y++) {
 			var x = 0;
-			while (x < mw-px) {
+			while (x < mw-pw) {
 				var pos = x + mw * (y + mh * z);
 				var xx = probe(pos, x, y, z);
 				x += Math.max(1, xx);

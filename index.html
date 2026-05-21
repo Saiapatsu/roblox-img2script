@@ -500,6 +500,24 @@ var bcColsRgb8;
 // Array of 3*count Oklab color components
 var bcColsLab;
 
+// For web console users, format palette as GIMP palette
+function toGpl(pal) {
+	ensureBcolors();
+	function color(id, i) {
+		var i8 = i << 2;
+		var r = String(bcColsRgb8[i8+0]).padStart(3);
+		var g = String(bcColsRgb8[i8+1]).padStart(3);
+		var b = String(bcColsRgb8[i8+2]).padStart(3);
+		return `${r} ${g} ${b}\t${id}`;
+	}
+return `GIMP Palette
+Name: img2script
+Columns: 8
+#
+${pal.map(color).join("\n")}
+`;
+}
+
 // I'd prefer to do load lazily until something actually needs these palettes
 function ensureBcolors() {
 	if (!bcCount) parseBcolors();

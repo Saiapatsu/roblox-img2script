@@ -223,12 +223,12 @@ browse.addEventListener("change", () => {
 	if (m == n) handleInput();
 });
 
-var ehcanvas = document.createElement("canvas");
-var hcanvas = ehcanvas.getContext("2d");
 
 // -----------------------------------------------------------------------------
 
-// UInt*Array image data views
+// Canvas element and its 2D context
+var ehcanvas, hcanvas;
+// Uint*Array image data views
 var map8, map32;
 // Map size in each dimension with padding (i.e. data array size)
 var mw, mh, md;
@@ -244,6 +244,13 @@ var count;
 var countSolid;
 // Generated output volume string (Lua build() call) list
 var rope = [];
+
+// -----------------------------------------------------------------------------
+
+function makeCanvas() {
+	ehcanvas = document.createElement("canvas");
+	hcanvas = ehcanvas.getContext("2d");
+}
 
 // -----------------------------------------------------------------------------
 // For custom use cases, copy these functions, modify and paste them into the
@@ -490,9 +497,20 @@ function drawProjectile(sources, probe, whoopspadx) {
 	ehcanvas.height = mh * md;
 	sources.forEach((source, i) => hcanvas.drawImage(source, 0, i * mh));
 	
-	// UInt8Array and UInt32Array views for 4bpp and 1el/cell respectively
-	map8 = hcanvas.getImageData(0, 0, ehcanvas.width, ehcanvas.height).data;
-	map32 = new Uint32Array(map8.buffer);
+	try {
+		// Uint8Array and Uint32Array views for 4bpp and 1el/cell respectively
+		map8 = hcanvas.getImageData(0, 0, ehcanvas.width, ehcanvas.height).data;
+		map32 = new Uint32Array(map8.buffer);
+	} catch (e) {
+		// I saw getImageData fail and continue to fail after a remote, untrusted
+		// image was dragged into the field from another browser tab.
+		// Remake the entire canvas element (I don't care to find out whether
+		// anything less works) so that the utility will work again after the
+		// offending image is removed.
+		console.log("PURGING CANVAS");
+		makeCanvas();
+		throw e;
+	}
 	
 	// Turn all fully transparent and masked cells into #00000000
 	countSolid = normalizeAlpha(options.norm, options.matte, options.mattecolor);
@@ -508,6 +526,8 @@ function drawProjectile(sources, probe, whoopspadx) {
 		}
 	}
 }
+
+makeCanvas();
 
 window.onload = handleInput;
 </script>

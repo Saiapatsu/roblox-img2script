@@ -78,7 +78,7 @@ body {
 		<div>Color space:</div>
 		<div><label><input type="radio" name="csp" value="srgb" checked="">RGB</label></div>
 		<div><label><input type="radio" name="csp" value="rgb">Linear RGB</label></div>
-		<div><label><input type="radio" name="csp" value="lab">Oklab (buggy, slow and misbehaving)</label></div>
+		<div><label><input type="radio" name="csp" value="lab">Oklab</label></div>
 		<hr>
 		<div>Pointless options that do nothing:</div>
 		<div><label><input id="le" type="checkbox" checked="">Little-endian CPU</label></div>
@@ -622,15 +622,15 @@ function rgbToNearestBrickColorLinRgb(r, g, b, pal) {
 	var bestDist = Number.POSITIVE_INFINITY;
 	
 	r = (r/255)**2.2;
-	r = (g/255)**2.2;
-	r = (b/255)**2.2;
+	g = (g/255)**2.2;
+	b = (b/255)**2.2;
 	
 	for (i = 0; i < pal.length; i++) {
 		var id = pal[i];
 		var i8 = bcIdIndex.get(id) << 2;
 		var d1 = r - ((bcColsRgb8[i8+0]/255)**2.2);
-		var d2 = r - ((bcColsRgb8[i8+1]/255)**2.2);
-		var d3 = r - ((bcColsRgb8[i8+2]/255)**2.2);
+		var d2 = g - ((bcColsRgb8[i8+1]/255)**2.2);
+		var d3 = b - ((bcColsRgb8[i8+2]/255)**2.2);
 		var dist = d1*d1 + d2*d2 + d3*d3;
 		if (dist < bestDist) {
 			bestId = id;

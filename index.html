@@ -57,13 +57,28 @@ body {
 	<form id="options">
 		<div><input type="file" multiple="multiple"></div>
 		<hr>
-		<div><label><input id="sw" type="number" value="1" min="0" max="2048">X scale</label></div>
-		<div><label><input id="sh" type="number" value="1" min="0" max="2048">Y scale</label></div>
-		<div><label><input id="sd" type="number" value="1" min="0" max="2048">Z scale</label></div>
-		<div><label><input id="z" type="checkbox">3D</label></div>
-		<div><label><input id="mesh1" type="checkbox" checked="">XYZ greedy meshing, classic</label></div>
-		<div><label><input id="mesh2" type="checkbox" checked="">XYZ greedy meshing, Y axis split-avoidant</label></div>
-		<div><label><input id="matte" type="checkbox" checked="">Matte color: </label><input id="mattecolor" value="#000000" type="color"></div>
+		<div><label><input type="number" id="sw" value="1" min="0" max="2048">X scale</label></div>
+		<div><label><input type="number" id="sh" value="1" min="0" max="2048">Y scale</label></div>
+		<div><label><input type="number" id="sd" value="1" min="0" max="2048">Z scale</label></div>
+		<div><label title="Treat each image as a Z-layer. When unchecked, only operate on the last image."><input type="checkbox" id="z">3D</label></div>
+		<div><label><input type="checkbox" id="mesh1" checked="">XYZ greedy meshing, classic</label></div>
+		<div><label><input type="checkbox" id="mesh2" checked="">XYZ greedy meshing, Y axis split-avoidant</label></div>
+		<div><label title="This solid color becomes transparency"><input type="checkbox" id="matte" checked="">Matte color: </label><input id="mattecolor" type="color" value="#000000"></div>
+		<hr>
+		<div><label><input type="radio" name="color3" value="new" checked="">Color3.new()</label></div>
+		<div><label><input type="radio" name="color3" value="rgb">Color3.fromRGB()</label></div>
+		<div><label><input type="radio" name="color3" value="hex">Color3.fromHex()</label></div>
+		<div><label><input type="checkbox" id="outbc" checked="">BrickColor.new(id)</label></div>
+		<hr>
+		<div><label><input type="checkbox" id="quantize">Quantize to BrickColor</label></div>
+		<div><label><input type="radio" name="pal" value="ro32">ro32: 2006 32-color 8x4</label></div>
+		<div><label><input type="radio" name="pal" value="ro64">ro64: 2009 64-color 8x8</label></div>
+		<div><label><input type="radio" name="pal" value="ro128" checked="">ro128: 2015 128-color hexagonal (BrickColor.palette</label>())</div>
+		<div><label><input type="radio" name="pal" value="all">all: All 200 valid BrickColor indices</label></div>
+		<div>Color space:</div>
+		<div><label><input type="radio" name="csp" value="srgb" checked="">RGB</label></div>
+		<div><label><input type="radio" name="csp" value="rgb">Linear RGB</label></div>
+		<div><label><input type="radio" name="csp" value="lab">Oklab (buggy, slow and misbehaving)</label></div>
 		<hr>
 		<div>Pointless options that do nothing:</div>
 		<div><label><input id="le" type="checkbox" checked="">Little-endian CPU</label></div>
@@ -83,6 +98,7 @@ body {
 Split-avoidant meshing does the same but stops when it's about to expand toward Y and
 there's a matching color to the left and right of the row it'd check, leaving it for later.</div>
 <div>If you're not satisfied with build(), look into the page source (usually Ctrl+U) and patch it in the console. Particularly useful if you want the whole color as a 32-bit integer, which I've just commented out.</div>
+<div>Palette options not enough for you? Want dithering? Do it in an image editor, please.</div>
 </p>
 
 <script type="text/javascript">
@@ -126,6 +142,39 @@ function readOptions() {
 	
 	[options.mesh1, options.mesh2]
 		= [o.mesh1, o.mesh2].map(x => x.checked);
+	
+	options.quantize = o.quantize.checked;
+	options.pal = o.pal.value;
+	options.csp = o.csp.value;
+	options.outbc = o.outbc.checked;
+	options.color3 = o.color3.value;
+	
+	build = null;
+	
+	switch (options.color3) {
+		case "new": build = buildRgb; break;
+		case "rgb": build = buildRgb; break;
+		case "hex": build = buildHex; break;
+	}
+	
+	if (options.quantize) {
+		ensureBcolors();
+		
+		filter = options.outbc ? filterPalId : filterPalComponents;
+		
+		switch (options.csp) {
+			case "srgb": metric = rgbToNearestBrickColorSrgb; break;
+			case "rgb": metric = rgbToNearestBrickColorLinRgb; break;
+			case "lab": metric = rgbToNearestBrickColorLab; break;
+		}
+		
+		palette = palettes[options.pal];
+		
+		if (options.outbc) build = buildV;
+		
+	} else {
+		if (!build) build = buildRgb;
+	}
 	
 	var hrgb = o.mattecolor.value;
 	
@@ -260,7 +309,10 @@ function makeCanvas() {
 // the output text for everything... oh well)
 
 // Record a volume
-function build(pos, v, x, y, z, w, h, d) {
+// build(
+var build;
+
+function buildRgb(pos, v, x, y, z, w, h, d) {
 	count++;
 	// var pos8 = (x + mw * (y + mh * z)) << 2;
 	var pos8 = pos << 2;
@@ -274,7 +326,29 @@ function build(pos, v, x, y, z, w, h, d) {
 	rope.push(`b(${r},${g},${b},${a}, ${x},${y},${z}, ${w},${h},${d})`);
 }
 
+function buildHex(pos, v, x, y, z, w, h, d) {
+	count++;
+	var pos8 = pos << 2;
+	var vx = '"' + (v & 0xffffff).toString(16).padStart(6, "0") + '"';
+	var a = map8[pos8+3];
+	rope.push(`b(${vx}, ${a}, ${x},${y},${z}, ${w},${h},${d})`);
+}
+
+// I stopped caring about endianness at some point
+function buildV(pos, v, x, y, z, w, h, d) {
+	count++;
+	var a = map8[(pos << 2) + 3];
+	var vv = v & 0xffffff;
+	rope.push(`b(${vv}, ${a}, ${x},${y},${z}, ${w},${h},${d})`);
+}
+
 function genOutput() {
+	console.log(options, build === buildHex);
+	var rgb = build === buildRgb;
+	var cnew = rgb && options.color3 === "new";
+	var crgb = rgb && options.color3 === "rgb";
+	var hex = build === buildHex;
+	var bc = build === buildV;
 return `-- Position "bottom middle" of object at world origin
 local bounds = Vector3.new(${mw-pw}, ${mh-ph}, ${md-ph})
 local scale = Vector3.new(${sw}, ${sh}, ${sd})
@@ -284,17 +358,23 @@ local origin = Vector3.new(0, 0, 0) - adjust
 
 local model = Instance.new("Model")
 
--- rgba8: number 0-255, individual color components
+${rgb  ? "-- rgba8: number 0-255, individual color components" : ""
+}${hex ? "-- v: Hex color string" : ""
+}${bc  ? "-- v: BrickColor ID number" : ""}
 -- xyz: starting position (on the corner) of a volume
 -- whd: size of volume as in width, height, depth
-local function b(r8,g8,b8,a8, x,y,z, w,h,d)
-	local c = Color3.new(r8/255, g8/255, b8/255)
+${     rgb ? "local function b(r8,g8,b8,a8, x,y,z, w,h,d)" : ""
+}${(bc||hex) ? "local function b(v, a8, x,y,z, w,h,d)" : ""}
+	${cnew ? "local c = Color3.new(r8/255, g8/255, b8/255)" : ""
+	}${crgb ? "local c = Color3.fromRGB(r8, g8, b8)" : ""
+	}${hex ? "local c = Color3.fromHex(v)" : ""
+	}${bc ? "local c = BrickColor.new(v)" : ""}
 	local tr = (255 - a8) / 255
 	local size = Vector3.new(w, h, d) * scale
 	local pos = origin + flip * (Vector3.new(x, y, z) * scale + 0.5 * size)
 	
 	local part = Instance.new("Part", model)
-	part.Color = c
+	part.${!bc ? "Color" : "BrickColor"} = c
 	part.Transparency = tr
 	part.Size = size
 	part.Position = pos
@@ -356,6 +436,255 @@ function normalizeAlpha(norm, matte, color) {
 	}
 	return n;
 }
+
+// -----------------------------------------------------------------------------
+// Color palette quantization. Added by request of the guy in whose honor I
+// ported this tool, although it's probably better to do that in your
+// image editor!
+
+var palettes = {};
+
+// 2006 8x4 32-color palette according to model 2406780
+palettes.ro32 = [
+/**/  1, 208, 194, 199,  26,  21,  24, 226,
+/**/ 23, 107, 102,  11,  45, 135, 106, 105,
+/**/141,  28,  37, 119,  29, 151,  38, 192,
+/**/104,   9, 101,   5, 153, 217,  18, 125,
+];
+
+// 2009 8x8 64-color palette according to model 62802452
+palettes.ro64 = [
+/**/ 119,   24,  106,   21,  104,   23,  107,   37,
+/**/1001,    1,  208, 1002,  194,  199,   26, 1003,
+/**/1022,  105,  125,  153, 1023,  135,  102,  151,
+/**/   5,  226,  133,  101,    9,   11, 1018,   29,
+/**/1030, 1029, 1025, 1016, 1026, 1024, 1027, 1028,
+/**/1008, 1009,  133, 1004, 1032, 1010, 1019, 1020,
+/**/ 217,   18,   38, 1031, 1006, 1013,   45, 1021,
+/**/ 192, 1014, 1007, 1015, 1012, 1011,   28,  141,
+];
+
+// 2015 hexagonal 128-color palette according to model 9605273664
+// Actually the same as BrickColor.palette() at the moment
+palettes.ro128 = [
+/**/                   141,  301,  107,   26, 1012,  303, 1011,
+/**/                304,   28, 1018,  302,  305,  306,  307,  308,
+/**/            1021,  309,  310, 1019,  135,  102,   23, 1010,  312,
+/**/          313,   37, 1022, 1020, 1027,  311,  315, 1023, 1031,  316,
+/**/       151,  317,  318,  319, 1024,  314, 1013, 1006,  321,  322,  104,
+/**/   1008,  119,  323,  324,  325,  320,   11, 1026, 1016, 1032, 1015,  327,
+/**/1005, 1009,   29,  328, 1028,  208,   45,  329,  330,  331, 1004,   21,  332,
+/**/    333,   24,  334,  226, 1029,  335,  336,  342,  343,  338, 1007,  339,
+/**/       133,  106,  340,  341, 1001,    1,    9, 1025,  337,  344,  345,
+/**/         1014,  105,  346,  347,  348,  349, 1030,  125,  101,  350,
+/**/             192,  351,  352,  353,  354, 1002,    5,   18,  217,
+/**/                355,  356,  153,  357,  358,  359,  360,   38,
+/**/                   361,  362,  199,  194,  363,  364,  365,
+];
+
+// All 200 valid BrickColor indices as of 2025-09
+palettes.all = [
+1, 2, 3, 5, 6, 9, 11, 12, 18, 21, 22, 23, 24, 25, 26, 27, 28, 29, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 47, 48, 49, 50, 100, 101, 102, 103, 104, 105, 106, 107, 108, 110, 111, 112, 113, 115, 116, 118, 119, 120, 121, 123, 124, 125, 126, 127, 128, 131, 133, 134, 135, 136, 137, 138, 140, 141, 143, 145, 146, 147, 148, 149, 150, 151, 153, 154, 157, 158, 168, 176, 178, 179, 180, 190, 191, 192, 193, 194, 195, 196, 198, 199, 200, 208, 209, 210, 211, 212, 213, 216, 217, 218, 219, 220, 221, 222, 223, 224, 225, 226, 232, 268, 301, 302, 303, 304, 305, 306, 307, 308, 309, 310, 311, 312, 313, 314, 315, 316, 317, 318, 319, 320, 321, 322, 323, 324, 325, 327, 328, 329, 330, 331, 332, 333, 334, 335, 336, 337, 338, 339, 340, 341, 342, 343, 344, 345, 346, 347, 348, 349, 350, 351, 352, 353, 354, 355, 356, 357, 358, 359, 360, 361, 362, 363, 364, 365, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1011, 1012, 1013, 1014, 1015, 1016, 1017, 1018, 1019, 1020, 1021, 1022, 1023, 1024, 1025, 1026, 1027, 1028, 1029, 1030, 1031, 1032,
+];
+
+// Amount of colors in these arrays
+var bcCount;
+// Uint16Array of BrickColor IDs the rest correspond to
+var bcIdList;
+// Map BrickColor ID to index
+var bcIdIndex;
+// Uint32Array of RGBA colors ready to be dropped into image data
+var bcColsRgb32;
+// As above but individual components
+var bcColsRgb8;
+// Array of 3*count Oklab color components
+var bcColsLab;
+
+// I'd prefer to do load lazily until something actually needs these palettes
+function ensureBcolors() {
+	if (!bcCount) parseBcolors();
+}
+
+function parseBcolors() {
+	/*
+	local x = {}
+	for _,v in ipairs(require(workspace.ColorPicker.Palettes).all) do
+		local c = BrickColor.new(v).Color
+		table.insert(x, string.format("%03x%02x%02x%02x", v, math.round(c).R*255, math.round(c.G*255), math.round(c.B*255)))
+	end
+	print(table.concat(x))
+	*/
+	
+	// 3 nibbles brickcolor, 2+2+2 nibbles rgb
+	var v = "001f2f3f3002a1a5a2003f9e999005d7c59a006c2dab8009e8bac800b80bbdb00ccb8442012cc8e69015c4281c016c470a00170d69ac018f5cd3001962473201a1b2a3501b6d6e6c01c287f4701da1c48c024f3cf9b0254b974b026a05f35027c1cade028ececec029cd544b02ac1dff002b7bb6e802cf7f18d02db4d2e402fd9856c03084b68d031f8f184032ece8de064eec4b6065da867a0666e99ca067c7c1b70686b327c069e29b4006ada854106b008f9c06c685c4306e43549306fbfb7b10706874ac071e5adc8073c7d23c07455a5af076b7d7d5077a4bd47078d9e4a7079e7ac5807bd36f4c07c92397807deab89207ea5a5cb07fdcbc81080ae7a590839ca3a8085d5733d086d8dd5608774869d088877c90089e0986408a958a7308c203a5608d27462d08fcfe2f70917988a1092958ea3093938767094575857095161d32096abadac09778908209995797709a7b2e2f09dfff67b09ee1a4c20a8756c620b097695b0b2b484550b38987880b4d7a94b0bef9d62e0bfe8ab2d0c06940280c1cf60240c2a3a2a50c34667a40c423478b0c68e42850c7635f620c8828a5d0d0e5e4df0d1b08e440d27095780d379b5b50d49fc3e90d56c81b70d8904c2a0d97c5c460da96709f0db6b629b0dca7a9ce0ddcd62980dee4adc80dfdc90950e0f0d5a00e1ebb87f0e2fdea8d0e87dbbdd10c342b7512d506d5412e5b5d6912f0010b01302c651d131527cae132335882133102adc1343d1585135348e401365b9a4c1379fa1ac1385922591391f801d13a9fadc013b0989cf13c7b007b13d7c9c6b13e8aab8513fb9c4b1140cacbd1141a75e9b1427b2f7b14394be81144a8bd99145dfdfde147970000148b1e5a614998c2db14aff98dc14bff595914c75000014defb83814ef8d96d14fe7e7ec150c7d4e4151ff9494152be6862153562424154f1e7c7155fef3bb156e0b2d0157d490bd1589655551598f4c2a15ad3be9615be2dcbc15cedeaea15de9dada15e883e3e15fbc9b5d160c7ac78161cabfa3162bbb3b21636c584b164a0844f165958988166aba89e167af948316896676616956423616a7e683f16b69665c16c5a4c4216d6a39093e9f8f8f83eacdcdcd3eb1111113ecff00003edffb0003eeb480ff3efa34b4b3f0c1be423f1ffff003f20000ff3f30020603f42154b93f504afec3f6aa55003f7aa00aa3f8ff66cc3f9ffaf003fa12eed43fb00ffff3fc00ff003fd3a7d153fe7f8e643ff8c5b9f400afddff401ffc9c9402b1a7ff4039ff3e9404ccffcc405ffffcc406ffcc994076225d1408ff00bf";
+	
+	bcCount = Math.floor(v.length / 9);
+	bcIdList = new Uint16Array(bcCount);
+	bcColsRgb32 = new Uint32Array(bcCount);
+	bcColsRgb8 = new Uint8Array(bcColsRgb32.buffer);
+	bcColsLab = [];
+	bcIdIndex = new Map();
+	
+	for (var i = 0; i < bcCount; i += 1) {
+		var j = i * 9;
+		var id = parseInt(v.slice(j+0, j+3), 16);
+		var r = parseInt(v.slice(j+3, j+5), 16);
+		var g = parseInt(v.slice(j+5, j+7), 16);
+		var b = parseInt(v.slice(j+7, j+9), 16);
+		bcIdList[i] = id;
+		bcIdIndex.set(id, i);
+		var i4 = i << 2;
+		bcColsRgb8[i4+0] = r;
+		bcColsRgb8[i4+1] = g;
+		bcColsRgb8[i4+2] = b;
+		bcColsRgb8[i4+3] = 255;
+		var i3 = i*3;
+		[bcColsLab[i3+0], bcColsLab[i3+1], bcColsLab[i3+2]] = srgb_to_oklab(r/255, g/255, b/255);
+	}
+}
+
+// var exp = 2.2;
+// var iex = 1/exp;
+function srgb_to_oklab(r, g, b) {
+	var rr = r ** 2.2;
+	var gg = g ** 2.2;
+	var bb = b ** 2.2;
+	
+	var l = (0.4122214708*rr + 0.5363325363*gg + 0.0514459929*bb) ** (1/3);
+	var m = (0.2119034982*rr + 0.6806995451*gg + 0.1073969566*bb) ** (1/3);
+	var s = (0.0883024619*rr + 0.2817188376*gg + 0.6299787005*bb) ** (1/3);
+	
+	return [
+		(0.2104542553*l + 0.7936177850*m - 0.0040720468*s),
+		(1.9779984951*l - 2.4285922050*m + 0.4505937099*s),
+		(0.0259040371*l + 0.7827717662*m - 0.8086757660*s),
+	];
+}
+
+/*
+function oklab_to_srgb(L, a, b) {
+	var l = (L + 0.3963377774*a + 0.2158037573*b) ** 3;
+	var m = (L - 0.1055613458*a - 0.0638541728*b) ** 3;
+	var s = (L - 0.0894841775*a - 1.2914855480*b) ** 3;
+	
+	return [
+		(+4.0767416621*l - 3.3077115913*m + 0.2309699292*s) ** iex,
+		(-1.2684380046*l + 2.6097574011*m - 0.3413193965*s) ** iex,
+		(-0.0041960863*l - 0.7034186147*m + 1.7076147010*s) ** iex,
+	];
+}
+*/
+
+// No multi-dimensional data structure. Just a linear search will do, thank you.
+function rgbToNearestBrickColorSrgb(r, g, b, pal) {
+	var bestId;
+	var bestDist = Number.POSITIVE_INFINITY;
+	
+	for (i = 0; i < pal.length; i++) {
+		var id = pal[i];
+		var i8 = bcIdIndex.get(id) << 2;
+		var d1 = r - bcColsRgb8[i8+0];
+		var d2 = g - bcColsRgb8[i8+1];
+		var d3 = b - bcColsRgb8[i8+2];
+		var dist = d1*d1 + d2*d2 + d3*d3;
+		if (dist < bestDist) {
+			bestId = id;
+			bestDist = dist;
+			// console.log("<", id, dr, dg, db);
+		}
+		// else console.log(">", id, dr, dg, db);
+	}
+	
+	return bestId;
+}
+
+// You know what? Fine
+function rgbToNearestBrickColorLinRgb(r, g, b, pal) {
+	var bestId;
+	var bestDist = Number.POSITIVE_INFINITY;
+	
+	for (i = 0; i < pal.length; i++) {
+		var id = pal[i];
+		var i8 = bcIdIndex.get(id) << 2;
+		var d1 = ((r/255)**2.2) - ((bcColsRgb8[i8+0]/255)**2.2);
+		var d2 = ((g/255)**2.2) - ((bcColsRgb8[i8+1]/255)**2.2);
+		var d3 = ((b/255)**2.2) - ((bcColsRgb8[i8+2]/255)**2.2);
+		var dist = d1*d1 + d2*d2 + d3*d3;
+		if (dist < bestDist) {
+			bestId = id;
+			bestDist = dist;
+			// console.log("<", id, dr, dg, db);
+		}
+		// else console.log(">", id, dr, dg, db);
+	}
+	
+	return bestId;
+}
+
+function rgbToNearestBrickColorLab(r, g, b, pal) {
+	var bestId;
+	var bestDist = Number.POSITIVE_INFINITY;
+	
+	for (i = 0; i < pal.length; i++) {
+		var id = pal[i];
+		var [L, a, b] = srgb_to_oklab(r/255, g/255, b/255);
+		var i3 = bcIdIndex.get(id) * 3;
+		var d1 = L - bcColsLab[i3+0];
+		var d2 = a - bcColsLab[i3+1];
+		var d3 = b - bcColsLab[i3+2];
+		var dist = d1*d1 + d2*d2 + d3*d3;
+		if (dist < bestDist) {
+			bestId = id;
+			bestDist = dist;
+			// console.log("<", id, i3, d1, d2, d3);
+		}
+		// else console.log(">", id, i3, d1, d2, d3);
+	}
+	
+	return bestId;
+}
+
+function bcIdToRgb8(id) {
+	var i8 = bcIdIndex.get(id) << 2;
+	return [
+		bcColsRgb8[i8+0],
+		bcColsRgb8[i8+1],
+		bcColsRgb8[i8+2],
+	];
+}
+
+function filterPalComponents(fn, pal) {
+	ensureBcolors();
+	for (var i = 0; i < map32.length; i += 1) {
+		if (map32[i] !== 0) {
+			var i8c = i << 2;
+			var id = fn(map8[i8c+0], map8[i8c+1], map8[i8c+2], pal);
+			map32[i] = bcColsRgb32[bcIdIndex.get(id)];
+		}
+	}
+}
+
+function filterPalId(fn, pal) {
+	ensureBcolors();
+	for (var i = 0; i < map32.length; i += 1) {
+		if (map32[i] !== 0) {
+			var i8c = i << 2;
+			var id = fn(map8[i8c+0], map8[i8c+1], map8[i8c+2], pal);
+			map32[i] = (map32[i] & 0xff000000) | (id & 0xffffff);
+		}
+	}
+}
+
+var filter; // = filterPalId;
+var metric; // = rgbToNearestBrickColorSrgb;
+var palette; // = palettes.ro32;
+
+function filterQuantize() {
+	if (!options.quantize) return;
+	filter(metric, palette);
+}
+
+// -----------------------------------------------------------------------------
 
 // Scan right for a line of v, return width
 function right(pos, max, v) {
@@ -514,6 +843,9 @@ function drawProjectile(sources, probe, whoopspadx) {
 	
 	// Turn all fully transparent and masked cells into #00000000
 	countSolid = normalizeAlpha(options.norm, options.matte, options.mattecolor);
+	
+	// Apply palette if requested
+	filterQuantize();
 	
 	for (var z = 0; z < md-pd; z++) {
 		for (var y = 0; y < mh-ph; y++) {

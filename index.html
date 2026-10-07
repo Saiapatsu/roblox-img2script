@@ -52,28 +52,28 @@ body {
 
 <fieldset>
 	<legend>Input</legend>
-	<div>Drag-and-drop or paste an image here or onto the Browse button.</div>
+	<div>Drop or paste an image into this field.</div>
 	<div id="input" contenteditable=""></div>
 	<form id="options">
 		<div><input type="file" multiple="multiple"></div>
 		<hr>
-		<div><label><input type="number" id="sw" value="1" min="0" max="2048">X scale</label></div>
-		<div><label><input type="number" id="sh" value="1" min="0" max="2048">Y scale</label></div>
-		<div><label><input type="number" id="sd" value="1" min="0" max="2048">Z scale</label></div>
-		<div><label title="Treat each image as a Z-layer. When unchecked, only operate on the last image."><input type="checkbox" id="z">3D</label></div>
+		<div><label><input type="number" id="sw" value="1" min="0" max="2048"> X scale</label></div>
+		<div><label><input type="number" id="sh" value="1" min="0" max="2048"> Y scale</label></div>
+		<div><label><input type="number" id="sd" value="1" min="0" max="2048"> Z scale</label></div>
+		<div><abbr title="Use all images in input area as layers and output 3D model.&#10;When unchecked, ignore all but the last image."><label><input type="checkbox" id="z">3D</label></abbr></div>
 		<div><label><input type="checkbox" id="mesh1" checked="">XYZ greedy meshing, classic</label></div>
-		<div><label><input type="checkbox" id="mesh2" checked="">XYZ greedy meshing, Y axis split-avoidant</label></div>
-		<div><label title="This solid color becomes transparency"><input type="checkbox" id="matte" checked="">Matte color: </label><input id="mattecolor" type="color" value="#000000"></div>
+		<div><abbr title="Greedy meshing algorithm that won't merge downward&#10;unless adjacent to different pixels.&#10;Biggest effect is on inverted-T shapes."><label><input type="checkbox" id="mesh2" checked="">XYZ greedy meshing, Y axis split-avoidant</label></abbr></div>
+		<div><abbr title="This solid color gets masked into full transparency.&#10;Check this if you copy-paste from an image editor.&#10;Browsers tend to pick the image variant from the&#10;clipboard that doesn't havean alpha channel&#10;in favor of the one that does, at least for GIMP."><input type="checkbox" id="matte">Matte color:</label></abbr> <label><input id="mattecolor" type="color" value="#000000"></div>
 		<hr>
 		<div><label><input type="radio" name="color3" value="new" checked="">Color3.new()</label></div>
 		<div><label><input type="radio" name="color3" value="rgb">Color3.fromRGB()</label></div>
-		<div><label><input type="radio" name="color3" value="hex">Color3.fromHex()</label></div>
-		<div><label><input type="checkbox" id="outbc" checked="">BrickColor.new(id)</label></div>
+		<div><abbr title="Most compact character count-wise, but not available in old Roblox versions."><label><input type="radio" name="color3" value="hex">Color3.fromHex()</label></abbr></div>
 		<hr>
-		<div><label><input type="checkbox" id="quantize">Quantize to BrickColor</label></div>
+		<div><abbr title="Pick closest color in one of the palettes in the specified colorspace."><label><input type="checkbox" id="quantize">Quantize to BrickColor</label></abbr></div>
+		<div><abbr title="Ignore Color3 setting and output BrickColor numeric IDs."><label><input type="checkbox" id="outbc" checked="">BrickColor.new(id)</label></abbr></div>
 		<div><label><input type="radio" name="pal" value="ro32">ro32: 2006 32-color 8x4</label></div>
 		<div><label><input type="radio" name="pal" value="ro64">ro64: 2009 64-color 8x8</label></div>
-		<div><label><input type="radio" name="pal" value="ro128" checked="">ro128: 2015 128-color hexagonal (BrickColor.palette</label>())</div>
+		<div><label><input type="radio" name="pal" value="ro128" checked="">ro128: 2015 128-color hexagonal (BrickColor.palette())</label></div>
 		<div><label><input type="radio" name="pal" value="ro200">ro200: All 200 valid BrickColor indices</label></div>
 		<div>Color space:</div>
 		<div><label><input type="radio" name="csp" value="srgb">RGB</label></div>
@@ -88,20 +88,22 @@ body {
 	</form>
 </fieldset>
 
-<p>
-<div>Transparency is supported.</div>
-<div>3D is supported, add more than one image and turn on 3D.</div>
-<div>Do not paste huge images, processing is still quick but writing the output isn't.</div>
-<div>Any image that your browser can decode works, I've even converted an .ico before.</div>
-<div>It cannot get anything beyond the first frame of an animated image. (TODO filmstrip instead of 3D or last-2D mode)</div>
-<div>Colors can potentially get gamma-corrected, I've had problems with that in another web utility.</div>
-<div>Increasing the scale parameters above also limits the size of a greedy meshed volume to under 2048 studs per axis.</div>
-<div>Classic greedy meshing expands as much as it can toward X, then Y, then Z.
+<div>
+<p>Transparency is supported.</p>
+<p>3D is supported, add more than one image and turn on 3D.</p>
+<p>Do not paste huge images, processing is still quick but writing the output isn't.</p>
+<p>Any image that your browser can decode works, I've even converted an .ico before.</p>
+<p>It cannot get anything beyond the first frame of an animated image. (TODO filmstrip instead of 3D or last-2D mode)<br>
+Vertical filmstrip is easy because that's how 3D is done internally, GIF can be parsed and split into multiple single-frame gifs and loaded by the browser like in that one AS3 GIF player.</p>
+<p>Colors can potentially get gamma-corrected, I've had problems with that in another web utility.</p>
+<p>Increasing the scale parameters above also limits the size of a greedy meshed volume to under 2048 studs per axis. If you have a very big image and each pixel is more or less than 1 stud, you should make use of this to avoid creating overly large parts or splitting early.</p>
+<p>Classic greedy meshing expands as much as it can toward X, then Y, then Z.
 Split-avoidant meshing does the same but stops when it's about to expand toward Y and
-there's a matching color to the left and right of the row it'd check, leaving it for later.</div>
-<div>If you're not satisfied with build(), look into the page source (usually Ctrl+U) and patch it in the console. Particularly useful if you want the whole color as a 32-bit integer, which I've just commented out.</div>
-<div>Palette options not enough for you? Want dithering? Do it in an image editor, please.</div>
-</p>
+there's a matching color to the left and right of the row it'd check, leaving it for later.</p>
+<p>If you're not satisfied with build(), look into the page source (usually Ctrl+U) and patch it in the console. Particularly useful if you want the whole color as a 32-bit integer, which I've just commented out.</p>
+<p>Palette options not enough for you? Want to dither to a BrickColor palette instead of posterizing? Do it in an image editor, please.</p>
+<p><a href="https://bottosson.github.io/posts/oklab/">Oklab</a> is used to find the nearest palette match by default (input a color picker screenshot to see why), but the Roblox engine and other programs may have used RGB.</p>
+</div>
 
 <script type="text/javascript">
 var output = document.getElementById("output");
